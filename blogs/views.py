@@ -58,3 +58,15 @@ class BlogDetailAPIView(APIView):
         blog.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+class BlogsImagesAPIView(APIView):
+    def get(self, request):
+        pass
+
+    def post(self, request):
+        pass
+
+    def delete(self, request):
+        pass
+
+    
