@@ -11,8 +11,11 @@ class BlogTagSerializer(serializers.ModelSerializer):
 
 
 class BlogSerializer(serializers.ModelSerializer):
-    tag_name = serializers.CharField(source='tag.name', read_only=True)
-
     class Meta:
         model = Blog
-        fields = ['id', 'title', 'content', 'tag', 'tag_name', 'created_at', 'updated_at']
+        fields = [
+            'id', 'title', 'slug', 'content', 'cover_image', 'tags',
+            'is_published', 'priority',
+            'created_at', 'updated_at'
+        ]
+
