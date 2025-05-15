@@ -9,9 +9,14 @@ import traceback
 from user.models import UserAuth
 import uuid
 from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL
-from django.contrib.auth import get_user_model
+from django.contrib.auth import authenticate
 from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.hashers import check_password
+from user.tokens import CustomTokenObtainPairSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
 # Google Sign in functionality
@@ -185,3 +190,55 @@ class EmailPasswordLoginView(APIView):
         }
 
         return Response({**user_details, "message": "Login successful"}, status=status.HTTP_200_OK)
+
+
+
+# admin user login views
+class AdminLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        username = request.data.get('username')
+        password = request.data.get('password')
+
+        if not username or not password:
+            return Response({"error": "Username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is None or not user.is_staff:
+            return Response({"error": "Invalid credentials or not an admin"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        refresh = RefreshToken.for_user(user)
+        refresh['auth_type'] = 'admin'
+
+        return Response({
+            "user_id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "access_token": str(refresh.access_token),
+            "refresh": str(refresh),
+            "message": "Admin login successful"
+        }, status=status.HTTP_200_OK)
+
+
+# view for jwt tokens
+class CustomTokenView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+class AuthenticatedUserView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        user = request.user
+
+        # You can use the token claim 'auth_type' if needed
+        return Response({
+            "user_id": user.id,
+            "email": getattr(user, "email", ""),
+            "username": getattr(user, "username", ""),
+            "auth_type": getattr(user, "auth_type", "admin" if user.is_staff else "user"),
+            "message": "Authenticated user info fetched successfully"
+        }, status=status.HTTP_200_OK)

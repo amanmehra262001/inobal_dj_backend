@@ -4,8 +4,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import BlogTag, Blog
 from .serializers import BlogTagSerializer, BlogSerializer
+from rest_framework.permissions import AllowAny
+from rest_framework.authentication import SessionAuthentication
+from rest_framework import generics
 
 class BlogTagListCreateView(APIView):
+    authentication_classes = []  # ✅ disables JWT/global auth
+    permission_classes = [AllowAny]  # ✅ allow all requests
 
     def get(self, request):
         tags = BlogTag.objects.all()
@@ -20,7 +25,16 @@ class BlogTagListCreateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+class BlogTagDetailView(generics.DestroyAPIView):
+    queryset = BlogTag.objects.all()
+    serializer_class = BlogTagSerializer
+    authentication_classes = []  # allow unauthenticated requests
+    permission_classes = [AllowAny]
+    
+
 class BlogListCreateAPIView(APIView):
+    authentication_classes = []  # ✅ disables JWT/global auth
+    permission_classes = [AllowAny]  # ✅ allow all requests
 
     def get(self, request):
         blogs = Blog.objects.all().order_by('-created_at')
@@ -28,14 +42,19 @@ class BlogListCreateAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
+        print("DATA:", request.data)
         serializer = BlogSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        print("ERRORS:", serializer.errors)  # 👈 add this
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BlogDetailAPIView(APIView):
+    authentication_classes = []  # ✅ disables JWT/global auth
+    permission_classes = [AllowAny]  # ✅ allow all requests
 
     def get_object(self, pk):
         return get_object_or_404(Blog, pk=pk)
@@ -60,6 +79,9 @@ class BlogDetailAPIView(APIView):
 
 
 class BlogsImagesAPIView(APIView):
+    authentication_classes = []  # ✅ disables JWT/global auth
+    permission_classes = [AllowAny]  # ✅ allow all requests
+
     def get(self, request):
         pass
 
@@ -69,4 +91,3 @@ class BlogsImagesAPIView(APIView):
     def delete(self, request):
         pass
 
-    

@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils.text import slugify
-
+import itertools
 
 class BlogTag(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -23,10 +23,13 @@ class BlogTag(models.Model):
 class Blog(models.Model):
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=270, unique=True, blank=True)
-    content = models.TextField()
-    cover_image = models.URLField(blank=True, null=True)
-    tags = models.ManyToManyField(BlogTag, related_name="blogs")
+    content = models.JSONField(default=list)  # store structured content
     
+    cover_image = models.URLField(blank=True, null=True)
+    blog_frame_image = models.URLField(blank=True, null=True)  # New field
+    
+    tags = models.ManyToManyField('BlogTag', related_name="blogs", blank=True)
+
     is_published = models.BooleanField(default=False)
     priority = models.IntegerField(default=0)
 
@@ -34,12 +37,18 @@ class Blog(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-priority", "-created_at"]  # Higher priority comes first
+        ordering = ["-priority", "-created_at"]
 
     def __str__(self):
         return self.title
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.title)
+            base_slug = slugify(self.title)
+            slug = base_slug
+            for i in itertools.count(1):
+                if not Blog.objects.filter(slug=slug).exists():
+                    break
+                slug = f"{base_slug}-{i}"
+            self.slug = slug
         super().save(*args, **kwargs)

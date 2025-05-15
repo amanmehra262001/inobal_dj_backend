@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
 import uuid
 
+
 class CustomUserManager(BaseUserManager):
     def create_user(self, unique_id, email=None, password=None, auth_type=None):
         if not unique_id:
@@ -12,9 +13,9 @@ class CustomUserManager(BaseUserManager):
             email=email,
             auth_type=auth_type
         )
-        
+
         if password:
-            user.set_password(password)  # 🔥 Use set_password
+            user.set_password(password)
         else:
             user.set_unusable_password()
 
@@ -29,8 +30,8 @@ class CustomUserManager(BaseUserManager):
             auth_type=auth_type
         )
         user.is_superuser = True
-        user.is_staff = True   # 🔥 Set is_staff
-        user.is_active = True  # 🔥 Set is_active
+        user.is_staff = True
+        user.is_active = True
         user.save(using=self._db)
         return user
 
@@ -45,7 +46,7 @@ class UserAuth(AbstractBaseUser):
     is_active = models.BooleanField(default=True)
     password = models.CharField(max_length=128, blank=True, null=True)
     last_login = models.DateTimeField(blank=True, null=True)
-    auth_type = models.CharField(max_length=10, blank=True, null=True)  # 🔥 Store auth type (e.g., 'email', 'google')
+    auth_type = models.CharField(max_length=10, blank=True, null=True)  # e.g., 'email', 'google'
 
     objects = CustomUserManager()
 
@@ -67,8 +68,7 @@ class UserAuth(AbstractBaseUser):
 
 
 class UserProfile(models.Model):
-    user = models.OneToOneField(
-        UserAuth, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(UserAuth, on_delete=models.CASCADE, related_name='profile')
     name = models.CharField(max_length=255)
     image = models.CharField(max_length=255, blank=True, null=True)
     occupation = models.CharField(max_length=255, blank=True, null=True)
@@ -76,3 +76,22 @@ class UserProfile(models.Model):
 
     class Meta:
         db_table = 'user_profile'
+
+
+class AdminProfile(models.Model):
+    user = models.OneToOneField(UserAuth, on_delete=models.CASCADE, related_name='admin_profile')
+    full_name = models.CharField(max_length=255)
+    # role = models.CharField(max_length=100, choices=[
+    #     ('editor', 'Editor'),
+    #     ('moderator', 'Moderator'),
+    #     ('admin', 'Administrator'),
+    # ])
+    # department = models.CharField(max_length=100, blank=True, null=True)
+    joined_on = models.DateField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'admin_profile'
+
+    def __str__(self):
+        return f"{self.full_name} ({self.role})"

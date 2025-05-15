@@ -14,8 +14,12 @@ class BlogSerializer(serializers.ModelSerializer):
     class Meta:
         model = Blog
         fields = [
-            'id', 'title', 'slug', 'content', 'cover_image', 'tags',
-            'is_published', 'priority',
+            'id', 'title', 'slug', 'content',
+            'cover_image', 'blog_frame_image',  # ✅ Include it here
+            'tags', 'is_published', 'priority',
             'created_at', 'updated_at'
         ]
+        extra_kwargs = {
+            'tags': {'required': False}  # allow empty tags
+        }
 
