@@ -16,7 +16,7 @@ from user.tokens import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
-from rest_framework_simplejwt.authentication import JWTAuthentication
+from common.views import CustomJWTAuthentication
 
 
 # Google Sign in functionality
@@ -247,7 +247,7 @@ class CustomTokenView(TokenObtainPairView):
 
 
 class AuthenticatedUserView(APIView):
-    authentication_classes = [JWTAuthentication]
+    authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, *args, **kwargs):

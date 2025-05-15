@@ -9,6 +9,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
 from rest_framework import generics
 from user.models import UserAuth
+from common.views import CustomJWTAuthentication
 
 
 class BlogTagListCreateView(APIView):
@@ -36,21 +37,20 @@ class BlogTagDetailView(generics.DestroyAPIView):
     
 
 class BlogListCreateAPIView(APIView):
-    authentication_classes = [JWTAuthentication]  # ✅ enable JWT auth
-    permission_classes = [IsAuthenticated]         # ✅ restrict access to authenticated users
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        blogs = Blog.objects.all().order_by('-created_at')
+        blogs = Blog.objects.all().defer('content').order_by('-created_at')
         serializer = BlogSerializer(blogs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        # print("DATA:", request.data)
+        user = request.user
         serializer = BlogSerializer(data=request.data)
         if serializer.is_valid():
-            user = request.user
             try:
-                custom_user = UserAuth.objects.get(unique_id=user.unique_id)  # or user.email
+                custom_user = UserAuth.objects.get(id=user.id)
             except UserAuth.DoesNotExist:
                 return Response({"Error": "User not found in UserAuth."}, status=400)
 
@@ -62,12 +62,12 @@ class BlogListCreateAPIView(APIView):
             else:
                 author_name = 'Unknown'
 
+            # print("Auth Type from Token:", getattr(user, 'auth_type_from_token', 'N/A'))
+
             serializer.save(user=custom_user, author=author_name)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        print("ERRORS:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class BlogDetailAPIView(APIView):
