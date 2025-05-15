@@ -9,10 +9,11 @@ from .models import UserAuth, UserProfile, AdminProfile
 class UserCreationForm(forms.ModelForm):
     password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
     password2 = forms.CharField(label='Confirm password', widget=forms.PasswordInput)
+    is_staff = forms.BooleanField(label='Staff status', required=False, initial=False)
 
     class Meta:
         model = UserAuth
-        fields = ('email', 'auth_type')
+        fields = ('email', 'auth_type', 'is_staff')  # <-- added is_staff here
 
     def clean_password2(self):
         password1 = self.cleaned_data.get("password1")
@@ -24,7 +25,6 @@ class UserCreationForm(forms.ModelForm):
     def save(self, commit=True):
         user = super().save(commit=False)
         user.set_password(self.cleaned_data["password1"])
-        user.is_staff = True  # Set this if you want them to access admin
         if commit:
             user.save()
         return user
