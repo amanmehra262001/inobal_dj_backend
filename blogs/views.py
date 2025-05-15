@@ -10,6 +10,9 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework import generics
 from user.models import UserAuth
 from common.views import CustomJWTAuthentication
+from common.constants import S3_BLOG_BUCKET_NAME
+from common.utils.s3_utils import delete_image_from_s3, upload_image_to_s3
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 class BlogTagListCreateView(APIView):
@@ -96,16 +99,117 @@ class BlogDetailAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class BlogsImagesAPIView(APIView):
-    authentication_classes = []  # ✅ disables JWT/global auth
-    permission_classes = [AllowAny]  # ✅ allow all requests
 
-    def get(self, request):
-        pass
+
+# S3 image manager
+class S3ImageManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    # permission_classes = [AllowAny]
 
     def post(self, request):
-        pass
+        """
+        Upload an image to a folder.
+        Example: POST with 'image' in form-data, optional 'folder'
+        """
+        image_file = request.FILES.get('image')
+        folder = request.data.get('folder', 'cover')
+
+        if not image_file:
+            return Response({'error': 'No image file provided'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = upload_image_to_s3(image_file=image_file, folder=folder, bucket=bucket)
+
+        if not response['error']:
+            print('Response message:', response['message'], 'url:', response['url'])
+            return Response({'message': response['message'], 'url': response['url'], 'key': response['key']}, status=200)
+        
+        if response['error']:
+            print('Response error message:', response['message'])
+            return Response({'message': response['message']}, status=400)
+        
 
     def delete(self, request):
-        pass
+        """
+        Delete an image from S3.
+        Example: DELETE /api/s3-image/?key=cover/image.jpg
+        """
+        image_key = request.query_params.get('key')
 
+        if not image_key:
+            return Response({'error': 'Image key is required'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+
+        response = delete_image_from_s3(bucket=bucket, image_key=image_key)
+
+        if not response['error']:
+            print('Response message:', response['message'], image_key)
+            return Response({'message':response['message']}, status=200)
+        
+        if response['error']:
+            print('Response error message:', response['message'])
+            return Response({'message':response['message']}, status=400)
+
+
+
+
+import boto3
+from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework import status
+
+# @api_view(['GET'])
+# @permission_classes([AllowAny])
+# def get_image_url(request):
+#     image_key=request.query_params.get('key')
+#     bucket=S3_BLOG_BUCKET_NAME
+
+#     if not image_key:
+#         return {'error': 'Image key is required', 'success': False}
+
+#     response = get_image_url(bucket=bucket, image_key=image_key)
+
+#     if not response['error']:
+#         print('Response message:', response['message'])
+#         return Response({'message':response['message']}, status=200)
+    
+#     if response['error']:
+#         print('Response error message:', response['message'])
+#         return Response({'message':response['message']}, status=400)
+
+
+
+class ListS3Images(APIView):
+    permission_classes = [AllowAny]  # Just for testing
+
+    def get(self, request):
+        folder = request.query_params.get('folder', 'cover/')  # default to 'cover/' folder
+
+        s3 = boto3.client(
+            's3',
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=settings.AWS_S3_REGION_NAME
+        )
+
+        bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+
+        try:
+            response = s3.list_objects_v2(Bucket=bucket_name, Prefix=folder)
+            files = []
+
+            for obj in response.get('Contents', []):
+                key = obj['Key']
+                # Skip folders
+                if not key.endswith('/'):
+                    file_url = f"https://{bucket_name}.s3.amazonaws.com/{key}"
+                    files.append(file_url)
+
+            return Response({"images": files})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+        

@@ -11,16 +11,19 @@ class BlogTagSerializer(serializers.ModelSerializer):
 
 
 class BlogSerializer(serializers.ModelSerializer):
+    tags = BlogTagSerializer(many=True, read_only=True)
+    tag_ids = serializers.PrimaryKeyRelatedField(
+        queryset=BlogTag.objects.all(), write_only=True, many=True, source='tags'
+    )
+
     class Meta:
         model = Blog
         fields = [
             'id', 'title', 'slug', 'content',
-            'cover_image', 'blog_frame_image',  # ✅ Include it here
-            'tags', 'is_published', 'priority',
+            'cover_image', 'blog_frame_image',
+            'tags', 'tag_ids',  # show full tags, accept tag IDs
+            'is_published', 'priority',
             'created_at', 'updated_at', 'author', 'user',
         ]
-        read_only_fields = ['user']
-        extra_kwargs = {
-            'tags': {'required': False}  # allow empty tags
-        }
+        read_only_fields = ['user', 'slug']
 

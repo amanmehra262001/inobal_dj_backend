@@ -41,7 +41,7 @@ class Blog(models.Model):
     views = models.IntegerField(default=0)
     
     cover_image = models.URLField(blank=True, null=True)
-    blog_frame_image = models.URLField(blank=True, null=True)  # New field
+    blog_frame_image = models.URLField(blank=True, null=True)
     
     tags = models.ManyToManyField('BlogTag', related_name="blogs", blank=True)
 
