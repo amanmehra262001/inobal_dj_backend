@@ -12,7 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
 from datetime import timedelta
+
+load_dotenv()
 
 JWT_SIGNING_SECRET_KEY = os.getenv("JWT_SIGNING_SECRET_KEY")
 
