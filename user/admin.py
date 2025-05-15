@@ -55,13 +55,13 @@ class UserAdmin(BaseUserAdmin):
     add_form = UserCreationForm
     inlines = [AdminProfileInline]
 
-    list_display = ('email', 'is_staff', 'is_superuser', 'auth_type', 'date_joined')
+    list_display = ('unique_id', 'email', 'is_staff', 'is_superuser', 'auth_type', 'date_joined')
     list_filter = ('is_staff', 'is_superuser', 'is_active')
 
     fieldsets = (
         (None, {'fields': ('email', 'password', 'auth_type')}),
         ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser')}),
-        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+        ('Important dates', {'fields': ['last_login']}),
     )
     add_fieldsets = (
         (None, {

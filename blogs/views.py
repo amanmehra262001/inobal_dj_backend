@@ -4,9 +4,12 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import BlogTag, Blog
 from .serializers import BlogTagSerializer, BlogSerializer
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.authentication import SessionAuthentication
 from rest_framework import generics
+from user.models import UserAuth
+
 
 class BlogTagListCreateView(APIView):
     authentication_classes = []  # ✅ disables JWT/global auth
@@ -33,8 +36,8 @@ class BlogTagDetailView(generics.DestroyAPIView):
     
 
 class BlogListCreateAPIView(APIView):
-    authentication_classes = []  # ✅ disables JWT/global auth
-    permission_classes = [AllowAny]  # ✅ allow all requests
+    authentication_classes = [JWTAuthentication]  # ✅ enable JWT auth
+    permission_classes = [IsAuthenticated]         # ✅ restrict access to authenticated users
 
     def get(self, request):
         blogs = Blog.objects.all().order_by('-created_at')
@@ -42,14 +45,29 @@ class BlogListCreateAPIView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
-        print("DATA:", request.data)
+        # print("DATA:", request.data)
         serializer = BlogSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            user = request.user
+            try:
+                custom_user = UserAuth.objects.get(unique_id=user.unique_id)  # or user.email
+            except UserAuth.DoesNotExist:
+                return Response({"Error": "User not found in UserAuth."}, status=400)
+
+            # get display name depending on profile type
+            if hasattr(user, 'profile'):
+                author_name = user.profile.name
+            elif hasattr(user, 'admin_profile'):
+                author_name = user.admin_profile.full_name
+            else:
+                author_name = 'Unknown'
+
+            serializer.save(user=custom_user, author=author_name)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        print("ERRORS:", serializer.errors)  # 👈 add this
+        print("ERRORS:", serializer.errors)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 class BlogDetailAPIView(APIView):

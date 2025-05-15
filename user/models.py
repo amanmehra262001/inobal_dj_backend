@@ -94,4 +94,4 @@ class AdminProfile(models.Model):
         db_table = 'admin_profile'
 
     def __str__(self):
-        return f"{self.full_name} ({self.role})"
+        return f"{self.full_name}"

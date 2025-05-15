@@ -17,8 +17,9 @@ class BlogSerializer(serializers.ModelSerializer):
             'id', 'title', 'slug', 'content',
             'cover_image', 'blog_frame_image',  # ✅ Include it here
             'tags', 'is_published', 'priority',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'author', 'user',
         ]
+        read_only_fields = ['user']
         extra_kwargs = {
             'tags': {'required': False}  # allow empty tags
         }

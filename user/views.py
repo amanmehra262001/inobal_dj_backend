@@ -6,9 +6,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 import requests
 from rest_framework import status
 import traceback
-from user.models import UserAuth
+from user.models import UserAuth, AdminProfile
 import uuid
-from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL
+from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL, AUTH_TYPE_ADMIN, AUTH_TYPE_USER
 from django.contrib.auth import authenticate
 from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.hashers import check_password
@@ -194,27 +194,46 @@ class EmailPasswordLoginView(APIView):
 
 
 # admin user login views
+class AdminAuthBackend(BaseBackend):
+    def authenticate(self, request, unique_id=None, password=None):
+        try:
+            # Look up the user by email
+            user = UserAuth.objects.get(unique_id=unique_id)
+            print('user:', user)
+            if user and check_password(password, user.password):
+                print('user:', user)
+                return user
+        except UserAuth.DoesNotExist:
+            return None
+
+        return None
+    
 class AdminLoginView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        username = request.data.get('username')
+        print("admin login post view")
+        unique_id = request.data.get('unique_id')
         password = request.data.get('password')
+        print('unique id and pass:', unique_id, password)
 
-        if not username or not password:
-            return Response({"error": "Username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not unique_id or not password:
+            return Response({"error": "Unique ID and password are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        user = authenticate(request, username=username, password=password)
+        user = AdminAuthBackend().authenticate(request, unique_id=unique_id, password=password)
 
         if user is None or not user.is_staff:
             return Response({"error": "Invalid credentials or not an admin"}, status=status.HTTP_401_UNAUTHORIZED)
 
+        admin_profile = AdminProfile.objects.get(user=user)
+
         refresh = RefreshToken.for_user(user)
-        refresh['auth_type'] = 'admin'
+        refresh['auth_type'] = AUTH_TYPE_ADMIN
 
         return Response({
             "user_id": user.id,
-            "username": user.username,
+            "unique_id": user.unique_id,
+            "name": admin_profile.full_name,
             "email": user.email,
             "access_token": str(refresh.access_token),
             "refresh": str(refresh),
@@ -233,12 +252,18 @@ class AuthenticatedUserView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
+        auth_type = getattr(user, "auth_type", AUTH_TYPE_ADMIN if user.is_staff else AUTH_TYPE_USER)
+
+        if auth_type == AUTH_TYPE_ADMIN:
+            admin_profile = AdminProfile.objects.get(user=user)
+            name = admin_profile.full_name
 
         # You can use the token claim 'auth_type' if needed
         return Response({
             "user_id": user.id,
             "email": getattr(user, "email", ""),
-            "username": getattr(user, "username", ""),
-            "auth_type": getattr(user, "auth_type", "admin" if user.is_staff else "user"),
+            "name": name or "",
+            "unique_id": getattr(user, "unique_id", ""),
+            "auth_type": auth_type,
             "message": "Authenticated user info fetched successfully"
         }, status=status.HTTP_200_OK)

@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 import itertools
+from user.models import UserAuth
 
 class BlogTag(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -21,9 +22,23 @@ class BlogTag(models.Model):
 
 
 class Blog(models.Model):
+    user = models.ForeignKey(  # Link to UserAuth model
+        UserAuth,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='blogs'
+    )
+    author = models.CharField(  # Display name of the author
+        max_length=255,
+        blank=True,
+        null=True
+    )
+    
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=270, unique=True, blank=True)
     content = models.JSONField(default=list)  # store structured content
+    views = models.IntegerField(default=0)
     
     cover_image = models.URLField(blank=True, null=True)
     blog_frame_image = models.URLField(blank=True, null=True)  # New field
