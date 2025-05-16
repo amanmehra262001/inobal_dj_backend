@@ -16,8 +16,12 @@ from rest_framework.parsers import MultiPartParser, FormParser
 
 
 class BlogTagListCreateView(APIView):
-    authentication_classes = []  # ✅ disables JWT/global auth
-    permission_classes = [AllowAny]  # ✅ allow all requests
+    authentication_classes = [CustomJWTAuthentication]  # or your custom class
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
 
     def get(self, request):
         tags = BlogTag.objects.all()
@@ -35,9 +39,13 @@ class BlogTagListCreateView(APIView):
 class BlogTagDetailView(generics.DestroyAPIView):
     queryset = BlogTag.objects.all()
     serializer_class = BlogTagSerializer
-    authentication_classes = []  # allow unauthenticated requests
-    permission_classes = [AllowAny]
-    
+    authentication_classes = [CustomJWTAuthentication]
+
+    def get_permissions(self):
+        if self.request.method == 'DELETE':
+            return [IsAuthenticated()]
+        return [AllowAny()]
+
 
 class BlogListCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]

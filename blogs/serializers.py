@@ -23,7 +23,7 @@ class BlogSerializer(serializers.ModelSerializer):
             'cover_image', 'blog_frame_image',
             'tags', 'tag_ids',  # show full tags, accept tag IDs
             'is_published', 'priority',
-            'created_at', 'updated_at', 'author', 'user',
+            'created_at', 'updated_at', 'author', 'user', 'views'
         ]
         read_only_fields = ['user', 'slug']
 
