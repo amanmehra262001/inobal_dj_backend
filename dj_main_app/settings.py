@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'storages',
 
     'user',
-    'blogs'
+    'blogs',
+    'magazines',
 ]
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
@@ -88,6 +89,7 @@ SIMPLE_JWT = {
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "https://inobal-magazine-admin.vercel.app",
 ]
 
 MIDDLEWARE = [
