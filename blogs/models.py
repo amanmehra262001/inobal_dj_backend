@@ -39,6 +39,7 @@ class Blog(models.Model):
     slug = models.SlugField(max_length=270, unique=True, blank=True)
     content = models.JSONField(default=list)  # store structured content
     views = models.IntegerField(default=0)
+    description = models.CharField(max_length=300, blank=True)
     
     cover_image = models.URLField(blank=True, null=True)
     blog_frame_image = models.URLField(blank=True, null=True)

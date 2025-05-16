@@ -5,9 +5,9 @@ from rest_framework import status
 from .models import BlogTag, Blog
 from .serializers import BlogTagSerializer, BlogSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework.authentication import SessionAuthentication
 from rest_framework import generics
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from user.models import UserAuth
 from common.views import CustomJWTAuthentication
 from common.constants import S3_BLOG_BUCKET_NAME
@@ -51,6 +51,7 @@ class BlogListCreateAPIView(APIView):
     def post(self, request):
         user = request.user
         serializer = BlogSerializer(data=request.data)
+        is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
             try:
                 custom_user = UserAuth.objects.get(id=user.id)
@@ -67,15 +68,15 @@ class BlogListCreateAPIView(APIView):
 
             # print("Auth Type from Token:", getattr(user, 'auth_type_from_token', 'N/A'))
 
-            serializer.save(user=custom_user, author=author_name)
+            serializer.save(user=custom_user, author=author_name, is_published=is_published)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class BlogDetailAPIView(APIView):
-    authentication_classes = []  # ✅ disables JWT/global auth
-    permission_classes = [AllowAny]  # ✅ allow all requests
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
     def get_object(self, pk):
         return get_object_or_404(Blog, pk=pk)
@@ -88,8 +89,9 @@ class BlogDetailAPIView(APIView):
     def put(self, request, pk):
         blog = self.get_object(pk)
         serializer = BlogSerializer(blog, data=request.data)
+        is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
-            serializer.save()
+            serializer.save(is_published=is_published)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -98,6 +100,18 @@ class BlogDetailAPIView(APIView):
         blog.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+
+class PublishedBlogPagination(PageNumberPagination):
+    page_size = 10  # Default page size
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+
+class PublishedBlogListAPIView(ListAPIView):
+    queryset = Blog.objects.filter(is_published=True).order_by('-created_at')
+    serializer_class = BlogSerializer
+    pagination_class = PublishedBlogPagination
+    permission_classes = [AllowAny]
 
 
 
