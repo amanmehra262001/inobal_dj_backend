@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-0e+s8_9^saajjr%@7gu3944@#)nna4^msjh*1_u-9h-&lz)#qg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['13.48.3.213', 'api.worthminds.com', 'www.api.worthminds.com']  # OR ['your-ip']
+ALLOWED_HOSTS = ['13.49.125.10', 'api.worthminds.com', 'www.api.worthminds.com']  # OR ['your-ip']
 
 
 # Application definition
@@ -90,6 +90,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://inobal-magazine-admin.vercel.app",
+    "https://worthminds.com",
 ]
 
 MIDDLEWARE = [
@@ -180,6 +181,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'static/')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
+MEDIA_URL = '/media/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
