@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import BlogTag, Blog
-from .serializers import BlogTagSerializer, BlogSerializer
+from .serializers import BlogTagSerializer, BlogSerializer, BlogListSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework import generics
 from rest_framework.generics import ListAPIView
@@ -109,18 +109,21 @@ class BlogDetailAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-
 class PublishedBlogPagination(PageNumberPagination):
-    page_size = 10  # Default page size
+    page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 50
 
-class PublishedBlogListAPIView(ListAPIView):
+class PublishedBlogListAPIView(generics.ListAPIView):
     queryset = Blog.objects.filter(is_published=True).order_by('-created_at')
-    serializer_class = BlogSerializer
+    serializer_class = BlogListSerializer
     pagination_class = PublishedBlogPagination
     permission_classes = [AllowAny]
 
+class PublishedBlogDetailAPIView(generics.RetrieveAPIView):
+    queryset = Blog.objects.filter(is_published=True)
+    serializer_class = BlogSerializer  # ✅ Includes content
+    permission_classes = [AllowAny]
 
 
 # S3 image manager

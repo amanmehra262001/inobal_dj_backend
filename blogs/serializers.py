@@ -27,3 +27,10 @@ class BlogSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['user', 'slug']
 
+
+class BlogListSerializer(serializers.ModelSerializer):
+    tags = BlogTagSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Blog
+        exclude = ['content']  # 🚫 Exclude content from list

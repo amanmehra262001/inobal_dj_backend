@@ -1,7 +1,7 @@
 # blog/urls.py
 
 from django.urls import path
-from .views import BlogListCreateAPIView, BlogDetailAPIView, BlogTagListCreateView, BlogTagDetailView, ListS3Images,S3ImageManager, PublishedBlogListAPIView
+from .views import BlogListCreateAPIView, BlogDetailAPIView, BlogTagListCreateView, BlogTagDetailView, ListS3Images,S3ImageManager, PublishedBlogListAPIView, PublishedBlogDetailAPIView
 
 urlpatterns = [
     path('tags/', BlogTagListCreateView.as_view(), name='blogtag-list-create'),
@@ -13,5 +13,6 @@ urlpatterns = [
 
 
     # public apis
-    path('published/', PublishedBlogListAPIView.as_view(), name='published-blogs'),
+    path('published/', PublishedBlogListAPIView.as_view(), name='published-blog-list'),
+    path('published/<int:pk>/', PublishedBlogDetailAPIView.as_view(), name='published-blog-detail'),
 ]
