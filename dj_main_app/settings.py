@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-0e+s8_9^saajjr%@7gu3944@#)nna4^msjh*1_u-9h-&lz)#qg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['13.49.125.10', 'api.worthminds.com', 'www.api.worthminds.com']  # OR ['your-ip']
+ALLOWED_HOSTS = ['13.49.125.10', 'api.worthminds.com', 'www.api.worthminds.com', '127.0.0.1']  # OR ['your-ip']
 
 
 # Application definition

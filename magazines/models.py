@@ -21,6 +21,8 @@ class MagazineTag(models.Model):
         super().save(*args, **kwargs)
 
 
+# magazines/models.py
+
 class Magazine(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -31,7 +33,11 @@ class Magazine(models.Model):
     cover_image_url = models.URLField(blank=True, null=True)
     cover_image_key = models.CharField(max_length=255, blank=True, null=True)
 
-    tags = models.ManyToManyField(MagazineTag, related_name='magazines', blank=True)
+    # PDF fields
+    pdf_url = models.URLField(blank=True, null=True)
+    pdf_key = models.CharField(max_length=255, blank=True, null=True)
+
+    tags = models.ManyToManyField('MagazineTag', related_name='magazines', blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
