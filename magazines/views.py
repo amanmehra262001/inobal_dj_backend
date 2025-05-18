@@ -8,7 +8,10 @@ from magazines.models import Magazine, MagazineTag
 from .serializers import MagazineSerializer, MagazineTagSerializer
 from common.views import CustomJWTAuthentication
 from datetime import datetime
-from django.db.models.functions import ExtractYear
+from common.constants import S3_MAGAZINE_BUCKET_NAME, S3_BLOG_BUCKET_NAME
+from rest_framework.parsers import MultiPartParser, FormParser
+from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3  # assuming these are shared
+from django.conf import settings
 
 # --- TAG Views ---
 
@@ -104,3 +107,104 @@ class PublicMagazinesByYearView(APIView):
 
         serializer = MagazineSerializer(magazines, many=True)
         return Response(serializer.data, status=200)
+    
+
+
+
+# S3 integration
+class S3MagazineFileManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Upload a file (image or PDF) to S3 under a folder.
+        Send as form-data:
+        - file (required)
+        - folder (optional: defaults to 'magazines')
+        """
+        upload_file = request.FILES.get('file')
+        folder = request.data.get('folder', 'misc')
+
+        if not upload_file:
+            return Response({'error': 'No file provided'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = upload_image_to_s3(image_file=upload_file, folder=folder, bucket=bucket)
+
+        if not response['error']:
+            return Response({
+                'message': response['message'],
+                'url': response['url'],
+                'key': response['key']
+            }, status=200)
+        
+        return Response({'message': response['message']}, status=400)
+
+    def delete(self, request):
+        """
+        Delete a file from S3 by its key:
+        /api/s3-magazine/?key=magazines/filename.pdf
+        """
+        file_key = request.query_params.get('key')
+
+        if not file_key:
+            return Response({'error': 'File key is required'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = delete_image_from_s3(bucket=bucket, image_key=file_key)
+
+        if not response['error']:
+            return Response({'message': response['message']}, status=200)
+
+        return Response({'message': response['message']}, status=400)
+
+
+class S3MagazineImageManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Upload a file (image or PDF) to S3 under a folder.
+        Send as form-data:
+        - file (required)
+        - folder (optional: defaults to 'magazines')
+        """
+        upload_file = request.FILES.get('image')
+        folder = request.data.get('folder', 'misc')
+
+        if not upload_file:
+            return Response({'error': 'No file provided'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = upload_image_to_s3(image_file=upload_file, folder=folder, bucket=bucket)
+
+        if not response['error']:
+            return Response({
+                'message': response['message'],
+                'url': response['url'],
+                'key': response['key']
+            }, status=200)
+        
+        return Response({'message': response['message']}, status=400)
+
+    def delete(self, request):
+        """
+        Delete a file from S3 by its key:
+        /api/s3-magazine/?key=magazines/filename.pdf
+        """
+        file_key = request.query_params.get('key')
+
+        if not file_key:
+            return Response({'error': 'File key is required'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = delete_image_from_s3(bucket=bucket, image_key=file_key)
+
+        if not response['error']:
+            return Response({'message': response['message']}, status=200)
+
+        return Response({'message': response['message']}, status=400)
