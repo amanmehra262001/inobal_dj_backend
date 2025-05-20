@@ -89,6 +89,14 @@ class MagazineDetailAPIView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class PublicMagazineDetailView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, pk):
+        magazine = get_object_or_404(Magazine, id=pk, is_published=True)
+        serializer = MagazineSerializer(magazine)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PublicMagazinesByYearView(APIView):
