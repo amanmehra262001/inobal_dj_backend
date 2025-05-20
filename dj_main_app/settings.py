@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-0e+s8_9^saajjr%@7gu3944@#)nna4^msjh*1_u-9h-&lz)#qg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['13.49.125.10', 'api.worthminds.com', 'www.api.worthminds.com', '127.0.0.1']  # OR ['your-ip']
+ALLOWED_HOSTS = ['*']  # OR ['your-ip']
 
 
 # Application definition
@@ -45,8 +45,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'corsheaders',
     'rest_framework',
+    'corsheaders',
     'storages',
 
     'user',
@@ -89,20 +89,23 @@ SIMPLE_JWT = {
 
 CSRF_TRUSTED_ORIGINS = [
     "https://api.worthminds.com",
-    "https://worthminds.com"
+    "https://worthminds.com",
+    "https://www.worthminds.com",
 ]
 
 CORS_ALLOWED_ORIGINS = [
+    "https://www.worthminds.com",
     "http://localhost:3000",
     "https://inobal-magazine-admin.vercel.app",
+    "https://inobal-magazine-website-ppls.vercel.app",
     "https://worthminds.com",
     "https://api.worthminds.com",
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',

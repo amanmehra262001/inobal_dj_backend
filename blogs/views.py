@@ -70,7 +70,7 @@ class BlogListCreateAPIView(APIView):
             if hasattr(user, 'profile'):
                 author_name = user.profile.name
             elif hasattr(user, 'admin_profile'):
-                author_name = user.admin_profile.full_name
+                author_name = "Worth Minds"
             else:
                 author_name = 'Unknown'
 
@@ -114,11 +114,23 @@ class PublishedBlogPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 50
 
-class PublishedBlogListAPIView(generics.ListAPIView):
-    queryset = Blog.objects.filter(is_published=True).order_by('-created_at')
-    serializer_class = BlogListSerializer
-    pagination_class = PublishedBlogPagination
+class PublishedBlogListAPIView(APIView):
     permission_classes = [AllowAny]
+
+    class CustomPagination(PageNumberPagination):
+        page_size = 10  # Default page size
+        page_size_query_param = 'page_size'
+        max_page_size = 50
+
+    def get(self, request):
+        blogs = Blog.objects.filter(is_published=True).defer('content').order_by('-created_at')
+        
+        paginator = self.CustomPagination()
+        result_page = paginator.paginate_queryset(blogs, request)
+
+        serializer = BlogSerializer(result_page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
 
 class PublishedBlogDetailAPIView(generics.RetrieveAPIView):
     queryset = Blog.objects.filter(is_published=True)
