@@ -113,6 +113,7 @@ class PublicMagazinesByYearView(APIView):
 # Featured People API
 # View to get all featured people for a magazine (list, no long_description)
 class FeaturedPeopleByMagazineView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request, magazine_id):
@@ -123,6 +124,7 @@ class FeaturedPeopleByMagazineView(APIView):
 
 # View to get a single featured person with full details
 class FeaturedPersonDetailView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request, pk):

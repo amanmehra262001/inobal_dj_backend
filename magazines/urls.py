@@ -16,9 +16,9 @@ urlpatterns = [
     path('year/<int:year>/', PublicMagazinesByYearView.as_view(), name='magazine-by-year'),
 
 
-     path('magazines/<int:magazine_id>/featured/', FeaturedPeopleByMagazineView.as_view(), name='featured-people-by-magazine'),
+     path('<int:magazine_id>/featured/', FeaturedPeopleByMagazineView.as_view(), name='featured-people-by-magazine'),
     path('featured/<int:pk>/', FeaturedPersonDetailView.as_view(), name='featured-person-detail'),
-    path('magazines/<int:magazine_id>/featured/create/', CreateFeaturedPersonView.as_view(), name='create-featured-person'),
+    path('<int:magazine_id>/featured/create/', CreateFeaturedPersonView.as_view(), name='create-featured-person'),
     path('featured/<int:pk>/update/', UpdateFeaturedPersonView.as_view(), name='update-featured-person'),
     path('featured/<int:pk>/delete/', DeleteFeaturedPersonView.as_view(), name='delete-featured-person'),
 
