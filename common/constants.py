@@ -5,3 +5,4 @@ AUTH_TYPE_USER='USER'
 
 S3_BLOG_BUCKET_NAME="worthminds-blogs"
 S3_MAGAZINE_BUCKET_NAME="worthminds-magazines"
+S3_CONTRIBUTORS_BUCKET_NAME="worthminds-contributors"
