@@ -22,4 +22,5 @@ urlpatterns = [
     path('user/', include('user.urls')),
     path('api/blogs/', include('blogs.urls')),
     path('api/magazines/', include('magazines.urls')),
+    path('api/contributors/', include('contributors.urls')),
 ]
