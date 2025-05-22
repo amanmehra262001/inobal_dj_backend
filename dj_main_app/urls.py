@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/blogs/', include('blogs.urls')),
     path('api/magazines/', include('magazines.urls')),
     path('api/contributors/', include('contributors.urls')),
+    path('api/podcasts/', include('podcasts.urls')),
 ]
