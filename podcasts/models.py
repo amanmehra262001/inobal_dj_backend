@@ -30,6 +30,9 @@ class Podcast(models.Model):
     audio_url = models.URLField(blank=True, null=True)
     audio_key = models.CharField(max_length=255, blank=True, null=True)
 
+    cover_image_url = models.URLField(blank=True, null=True)
+    cover_image_key = models.CharField(max_length=255, blank=True, null=True)
+
     tags = models.ManyToManyField(PodcastTag, related_name="podcasts", blank=True)
     priority = models.IntegerField(default=0)
     is_published = models.BooleanField(default=False)

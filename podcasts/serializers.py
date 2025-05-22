@@ -21,7 +21,7 @@ class PodcastSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'title', 'description', 'transcript',
             'views', 'duration', 'published_date',
-            'audio_url', 'audio_key',
+            'audio_url', 'audio_key', 'cover_image_url', 'cover_image_key',
             'is_published', 'priority',
             'tags', 'tag_ids'
         ]
