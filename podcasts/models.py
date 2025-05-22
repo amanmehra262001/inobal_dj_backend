@@ -41,7 +41,7 @@ class Podcast(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-priority', '-published_date']
+        ordering = ['priority', '-published_date']
 
     def __str__(self):
         return self.title
