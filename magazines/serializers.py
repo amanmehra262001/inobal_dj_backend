@@ -1,7 +1,7 @@
 # magazines/serializers.py
 
 from rest_framework import serializers
-from .models import MagazineTag, Magazine
+from .models import MagazineTag, Magazine, FeaturedPerson
 
 class MagazineTagSerializer(serializers.ModelSerializer):
     class Meta:
@@ -25,3 +25,28 @@ class MagazineSerializer(serializers.ModelSerializer):
             'pdf_url', 'pdf_key', 'tags', 'tag_ids',
             'created_at', 'updated_at',
         ]
+
+
+class FeaturedPersonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeaturedPerson
+        fields = [
+            'id', 'magazine', 'title', 'short_description', 'long_description',
+            'job_title', 'job_abbreviation',
+            'image_url', 'image_key',
+            'linkedin_link', 'x_link', 'facebook_link', 'instagram_link',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class FeaturedPersonDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeaturedPerson
+        fields = '__all__'
+
+# Short serializer (for list fetch, excludes long_description)
+class FeaturedPersonListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FeaturedPerson
+        exclude = ['long_description']

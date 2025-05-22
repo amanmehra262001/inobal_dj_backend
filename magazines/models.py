@@ -47,3 +47,30 @@ class Magazine(models.Model):
 
     def __str__(self):
         return f"{self.name} - {self.published_date.year}"
+
+
+class FeaturedPerson(models.Model):
+    magazine = models.ForeignKey(
+        Magazine,
+        related_name='featured_people',
+        on_delete=models.CASCADE
+    )
+    title = models.CharField(max_length=255)
+    short_description = models.TextField(blank=True)
+    long_description = models.TextField(blank=True)
+    job_title = models.CharField(max_length=255)
+    job_abbreviation = models.CharField(max_length=50, blank=True)
+
+    image_url = models.URLField(blank=True, null=True)
+    image_key = models.CharField(max_length=255, blank=True, null=True)
+
+    linkedin_link = models.URLField(blank=True, null=True)
+    x_link = models.URLField(blank=True, null=True)  # X (formerly Twitter)
+    facebook_link = models.URLField(blank=True, null=True)
+    instagram_link = models.URLField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.title} ({self.job_abbreviation})"
