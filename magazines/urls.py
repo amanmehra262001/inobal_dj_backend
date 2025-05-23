@@ -3,7 +3,7 @@
 from django.urls import path
 from .views import (
     MagazineTagListCreateView, MagazineTagDeleteView,
-    MagazineListCreateAPIView, MagazineDetailAPIView, PublicMagazinesByYearView, S3MagazineFileManager, S3MagazineImageManager, S3MagazineFeaturedImageManager, FeaturedPeopleByMagazineView, CreateFeaturedPersonView, UpdateFeaturedPersonView, DeleteFeaturedPersonView, FeaturedPersonDetailView, PublicMagazineDetailView
+    MagazineListCreateAPIView, MagazineDetailAPIView, PublicMagazinesByYearView, S3MagazineFileManager, S3MagazineImageManager, S3MagazineFeaturedImageManager, FeaturedPeopleByMagazineView, CreateFeaturedPersonView, UpdateFeaturedPersonView, DeleteFeaturedPersonView, FeaturedPersonDetailView, PublicMagazineDetailView, MagazineYearsAPIView
 )
 
 urlpatterns = [
@@ -15,9 +15,10 @@ urlpatterns = [
     path('details/public/<int:pk>/', PublicMagazineDetailView.as_view(), name='magazine-detail-public'),
 
     path('year/<int:year>/', PublicMagazinesByYearView.as_view(), name='magazine-by-year'),
+    path('years/', MagazineYearsAPIView.as_view(), name='magazine-years'),
 
 
-     path('<int:magazine_id>/featured/', FeaturedPeopleByMagazineView.as_view(), name='featured-people-by-magazine'),
+    path('<int:magazine_id>/featured/', FeaturedPeopleByMagazineView.as_view(), name='featured-people-by-magazine'),
     path('featured/<int:pk>/', FeaturedPersonDetailView.as_view(), name='featured-person-detail'),
     path('<int:magazine_id>/featured/create/', CreateFeaturedPersonView.as_view(), name='create-featured-person'),
     path('featured/<int:pk>/update/', UpdateFeaturedPersonView.as_view(), name='update-featured-person'),
