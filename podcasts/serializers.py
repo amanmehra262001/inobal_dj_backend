@@ -25,3 +25,11 @@ class PodcastSerializer(serializers.ModelSerializer):
             'is_published', 'priority',
             'tags', 'tag_ids'
         ]
+
+
+
+class PodcastListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Podcast
+        exclude = ['transcript']  # Or use `fields` without transcript
+

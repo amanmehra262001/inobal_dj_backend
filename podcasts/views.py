@@ -3,11 +3,12 @@ from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import PodcastTag, Podcast
-from .serializers import PodcastTagSerializer, PodcastSerializer
+from .serializers import PodcastTagSerializer, PodcastSerializer, PodcastListSerializer
 from common.views import CustomJWTAuthentication
 from common.constants import S3_PODCASTS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
+from rest_framework.pagination import PageNumberPagination
 
 
 class PodcastTagListCreateView(APIView):
@@ -88,20 +89,36 @@ class PodcastDetailAPIView(APIView):
 
 
 # Public View for Published Podcasts
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10  # Default page size
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class StandardResultsSetPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
+
 class PublicPublishedPodcastListAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def get(self, request):
         podcast_id = request.query_params.get("id")
+
         if podcast_id:
             podcast = generics.get_object_or_404(Podcast, pk=podcast_id, is_published=True)
             serializer = PodcastSerializer(podcast)
             return Response(serializer.data)
 
-        podcasts = Podcast.objects.filter(is_published=True).order_by("-published_date")
-        serializer = PodcastSerializer(podcasts, many=True)
-        return Response(serializer.data)
+        podcasts = Podcast.objects.filter(is_published=True).defer('transcript').order_by("-published_date")
+        paginator = StandardResultsSetPagination()
+        paginated_qs = paginator.paginate_queryset(podcasts, request)
+        serializer = PodcastListSerializer(paginated_qs, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
 
 
 

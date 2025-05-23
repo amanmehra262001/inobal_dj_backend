@@ -14,6 +14,9 @@ from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3  # as
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 
+from django.db.models.functions import ExtractYear
+from django.db.models import Count
+
 
 # --- TAG Views ---
 class MagazineTagListCreateView(APIView):
@@ -116,6 +119,23 @@ class PublicMagazinesByYearView(APIView):
 
         serializer = MagazineSerializer(magazines, many=True)
         return Response(serializer.data, status=200)
+    
+
+class MagazineYearsAPIView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        years = (
+            Magazine.objects.filter(is_published=True)
+            .annotate(year=ExtractYear('published_date'))
+            .values('year')
+            .annotate(count=Count('id'))
+            .order_by('-year')
+            .values_list('year', flat=True)
+        )
+        return Response(list(years), status=status.HTTP_200_OK)
+
 
 
 # Featured People API
