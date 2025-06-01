@@ -70,7 +70,8 @@ class UserAuth(AbstractBaseUser):
 class UserProfile(models.Model):
     user = models.OneToOneField(UserAuth, on_delete=models.CASCADE, related_name='profile')
     name = models.CharField(max_length=255)
-    image = models.CharField(max_length=255, blank=True, null=True)
+    image_url = models.URLField(blank=True, null=True)
+    image_key = models.CharField(max_length=255, blank=True, null=True)
     occupation = models.CharField(max_length=255, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
 

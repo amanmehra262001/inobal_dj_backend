@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from .models import Book, BookTag
 from .serializers import BookSerializer, BookTagSerializer
-from common.views import CustomJWTAuthentication
+from common.views import CustomJWTAuthentication, IsAdminUser
 from common.constants import S3_BOOKS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
@@ -19,7 +19,7 @@ class BookTagListCreateView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get(self, request):
         tags = BookTag.objects.all().order_by("name")
@@ -40,14 +40,14 @@ class BookTagDetailDeleteView(generics.DestroyAPIView):
     authentication_classes = [CustomJWTAuthentication]
 
     def get_permissions(self):
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
 
 
 # JWT-protected: GET (detail), POST, PUT, DELETE
 class BookListCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         books = Book.objects.all().order_by('-published_date')
@@ -64,7 +64,7 @@ class BookListCreateAPIView(APIView):
 
 class BookDetailAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get_object(self, pk):
         return generics.get_object_or_404(Book, pk=pk)
@@ -123,7 +123,7 @@ class PublicPublishedBookDetailAPIView(APIView):
 class S3BooksImageManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """

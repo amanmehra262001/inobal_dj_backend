@@ -1,10 +1,10 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from .models import PodcastTag, Podcast
 from .serializers import PodcastTagSerializer, PodcastSerializer, PodcastListSerializer
-from common.views import CustomJWTAuthentication
+from common.views import CustomJWTAuthentication, IsAdminUser
 from common.constants import S3_PODCASTS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
@@ -17,7 +17,7 @@ class PodcastTagListCreateView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get(self, request):
         tags = PodcastTag.objects.all()
@@ -39,7 +39,7 @@ class PodcastTagDetailView(generics.DestroyAPIView):
 
     def get_permissions(self):
         if self.request.method == 'DELETE':
-            return [IsAuthenticated()]
+            return [IsAdminUser()]
         return [AllowAny()]
 
 
@@ -47,7 +47,7 @@ class PodcastTagDetailView(generics.DestroyAPIView):
 # JWT-protected CRUD views
 class PodcastListCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         podcasts = Podcast.objects.all()
@@ -64,7 +64,7 @@ class PodcastListCreateAPIView(APIView):
 
 class PodcastDetailAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get_object(self, pk):
         return generics.get_object_or_404(Podcast, pk=pk)
@@ -126,7 +126,7 @@ class PublicPublishedPodcastListAPIView(APIView):
 class S3PodcastsFileManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """
@@ -175,7 +175,7 @@ class S3PodcastsFileManager(APIView):
 class S3PodcastsImageManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """
