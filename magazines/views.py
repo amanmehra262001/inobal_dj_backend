@@ -3,14 +3,14 @@
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from magazines.models import Magazine, MagazineTag, FeaturedPerson
 from .serializers import MagazineSerializer, MagazineTagSerializer, FeaturedPersonSerializer, FeaturedPersonDetailSerializer, FeaturedPersonListSerializer
-from common.views import CustomJWTAuthentication
+from common.views import CustomJWTAuthentication, IsAdminUser
 from datetime import datetime
 from common.constants import S3_MAGAZINE_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
-from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3  # assuming these are shared
+from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 
@@ -25,7 +25,7 @@ class MagazineTagListCreateView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get(self, request):
         tags = MagazineTag.objects.all()
@@ -44,14 +44,14 @@ class MagazineTagDeleteView(generics.DestroyAPIView):
     queryset = MagazineTag.objects.all()
     serializer_class = MagazineTagSerializer
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
 
 # --- Magazine Views ---
 
 class MagazineListCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         magazines = Magazine.objects.all().order_by('-published_date')
@@ -68,7 +68,7 @@ class MagazineListCreateAPIView(APIView):
 
 class MagazineDetailAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get_object(self, pk):
         return generics.get_object_or_404(Magazine, pk=pk)
@@ -162,7 +162,7 @@ class FeaturedPersonDetailView(APIView):
 
 class CreateFeaturedPersonView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request, magazine_id):
         magazine = get_object_or_404(Magazine, id=magazine_id)
@@ -176,7 +176,7 @@ class CreateFeaturedPersonView(APIView):
 
 class UpdateFeaturedPersonView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def put(self, request, pk):
         person = get_object_or_404(FeaturedPerson, id=pk)
@@ -188,7 +188,7 @@ class UpdateFeaturedPersonView(APIView):
 
 class DeleteFeaturedPersonView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def delete(self, request, pk):
         person = get_object_or_404(FeaturedPerson, id=pk)
@@ -200,7 +200,7 @@ class DeleteFeaturedPersonView(APIView):
 class S3MagazineFileManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """
@@ -249,7 +249,7 @@ class S3MagazineFileManager(APIView):
 class S3MagazineImageManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """
@@ -298,7 +298,7 @@ class S3MagazineImageManager(APIView):
 class S3MagazineFeaturedImageManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """

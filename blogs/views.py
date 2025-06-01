@@ -4,15 +4,16 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import BlogTag, Blog
 from .serializers import BlogTagSerializer, BlogSerializer, BlogListSerializer
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import generics
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from user.models import UserAuth
-from common.views import CustomJWTAuthentication
+from common.views import CustomJWTAuthentication, IsAdminUser, IsAdminUser
 from common.constants import S3_BLOG_BUCKET_NAME
 from common.utils.s3_utils import delete_image_from_s3, upload_image_to_s3
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.exceptions import PermissionDenied
 
 
 class BlogTagListCreateView(APIView):
@@ -21,7 +22,7 @@ class BlogTagListCreateView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get(self, request):
         tags = BlogTag.objects.all()
@@ -43,13 +44,13 @@ class BlogTagDetailView(generics.DestroyAPIView):
 
     def get_permissions(self):
         if self.request.method == 'DELETE':
-            return [IsAuthenticated()]
+            return [IsAdminUser()]
         return [AllowAny()]
 
 
 class BlogListCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         blogs = Blog.objects.all().defer('content').order_by('-created_at')
@@ -84,7 +85,7 @@ class BlogListCreateAPIView(APIView):
 
 class BlogDetailAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def get_object(self, pk):
         return get_object_or_404(Blog, pk=pk)
@@ -124,6 +125,73 @@ class PublishedBlogDetailAPIView(generics.RetrieveAPIView):
     queryset = Blog.objects.filter(is_published=True)
     serializer_class = BlogSerializer  # ✅ Includes content
     permission_classes = [AllowAny]
+
+
+# user blogs
+class UserBlogListCreateAPIView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        blogs = Blog.objects.filter(user=user).defer('content').order_by('-created_at')
+        serializer = BlogSerializer(blogs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+        serializer = BlogSerializer(data=request.data)
+        is_published = request.data.get("is_published") in ["true", "True", True]
+        if serializer.is_valid():
+            try:
+                custom_user = UserAuth.objects.get(id=user.id)
+            except UserAuth.DoesNotExist:
+                return Response({"Error": "User not found in UserAuth."}, status=400)
+
+            # get display name depending on profile type
+            if hasattr(user, 'profile'):
+                author_name = user.profile.name
+            elif hasattr(user, 'admin_profile'):
+                author_name = user.admin_profile.full_name
+            else:
+                author_name = 'Unknown'
+
+            # print("Auth Type from Token:", getattr(user, 'auth_type_from_token', 'N/A'))
+
+            serializer.save(user=custom_user, author=author_name, is_published=is_published)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserBlogDetailAPIView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, pk):
+        blog = get_object_or_404(Blog, pk=pk)
+        if blog.user != self.request.user:
+            raise PermissionDenied("You do not have permission to access this blog.")
+        return blog
+
+    def get(self, request, pk):
+        blog = self.get_object(pk)
+        serializer = BlogSerializer(blog)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        blog = self.get_object(pk)
+        serializer = BlogSerializer(blog, data=request.data)
+        is_published = request.data.get("is_published") in ["true", "True", True]
+        if serializer.is_valid():
+            serializer.save(is_published=is_published)
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        blog = self.get_object(pk)
+        blog.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # S3 image manager

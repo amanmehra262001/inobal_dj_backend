@@ -3,11 +3,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from .models import TopContributor
 from .serializers import TopContributorSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
-from common.views import CustomJWTAuthentication  # Your custom JWT class if any
+from common.views import CustomJWTAuthentication, IsAdminUser  # Your custom JWT class if any
 
 from common.constants import S3_CONTRIBUTORS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
@@ -30,7 +30,7 @@ class TopContributorListAPIView(APIView):
 # POST view
 class TopContributorCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         serializer = TopContributorSerializer(data=request.data)
@@ -46,7 +46,7 @@ class TopContributorDetailAPIView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [AllowAny()]
-        return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get_object(self, pk):
         return generics.get_object_or_404(TopContributor, pk=pk)
@@ -73,7 +73,7 @@ class TopContributorDetailAPIView(APIView):
 class S3ContributorsImageManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
 
     def post(self, request):
         """

@@ -6,7 +6,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 import requests
 from rest_framework import status
 import traceback
-from user.models import UserAuth, AdminProfile
+from user.models import UserAuth, AdminProfile, UserProfile
 import uuid
 from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL, AUTH_TYPE_ADMIN, AUTH_TYPE_USER
 from django.contrib.auth import authenticate
@@ -14,14 +14,17 @@ from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.hashers import check_password
 from user.tokens import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.permissions import AllowAny
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from common.views import CustomJWTAuthentication
-
-
+from user.serializers import UserProfileSerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
+from common.constants import S3_USER_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 # Google Sign in functionality
 
 class GoogleSigninView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         token = request.data.get('token')
         if not token:
@@ -52,6 +55,7 @@ class GoogleSigninView(APIView):
             print('user:', user)
             # Generate JWT tokens for the user
             refresh = RefreshToken.for_user(user)
+            refresh['auth_type'] = AUTH_TYPE_USER
             
             user_details = {
                 "user_id": user.id,
@@ -98,6 +102,8 @@ class GoogleSigninView(APIView):
 # Sign up functionality
 
 class EmailPasswordSignupView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         # Get the email and password from the request data
         email = request.data.get('email')
@@ -158,6 +164,8 @@ class EmailAuthBackend(BaseBackend):
         return None
 
 class EmailPasswordLoginView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         # Get the email and password from the request data
         email = request.data.get('email')
@@ -180,6 +188,7 @@ class EmailPasswordLoginView(APIView):
 
         # Generate JWT tokens for the authenticated user
         refresh = RefreshToken.for_user(user)
+        refresh['auth_type'] = AUTH_TYPE_USER
         
         # Send back the response with user details and JWT tokens
         user_details = {
@@ -253,10 +262,34 @@ class AuthenticatedUserView(APIView):
     def get(self, request, *args, **kwargs):
         user = request.user
         auth_type = getattr(user, "auth_type", AUTH_TYPE_ADMIN if user.is_staff else AUTH_TYPE_USER)
-
+        
+        print('user:', user, auth_type)
+        name = None
+        image_url = None
+        image_key = None
+        occupation = None
+        bio = None
+        
         if auth_type == AUTH_TYPE_ADMIN:
             admin_profile = AdminProfile.objects.get(user=user)
             name = admin_profile.full_name
+        
+        if (auth_type == AUTH_TYPE_USER) or (auth_type == AUTH_TYPE_EMAIL) or (auth_type == AUTH_TYPE_GOOGLE):
+            try:
+                user_profile = UserProfile.objects.get(user=user)
+                name = user_profile.name
+                image_url = user_profile.image_url
+                image_key = user_profile.image_key
+
+                occupation = user_profile.occupation
+                bio = user_profile.bio
+
+            except Exception as e:
+                print('Error fetching user profile:', e)
+                return JsonResponse({
+                    "user_id": user.id,
+                    "message": "User Profile incomplete"
+                }, status=status.HTTP_400_BAD_REQUEST)
 
         # You can use the token claim 'auth_type' if needed
         return Response({
@@ -265,5 +298,93 @@ class AuthenticatedUserView(APIView):
             "name": name or "",
             "unique_id": getattr(user, "unique_id", ""),
             "auth_type": auth_type,
+            "image_key": image_key or "",
+            "image_url": image_url or "",
+            "occupation": occupation or "",
+            "bio": bio or "",
             "message": "Authenticated user info fetched successfully"
         }, status=status.HTTP_200_OK)
+
+
+class UserProfileView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            profile = request.user.profile
+            serializer = UserProfileSerializer(profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        if hasattr(request.user, 'profile'):
+            return Response({"detail": "Profile already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = UserProfileSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def put(self, request):
+        try:
+            profile = request.user.profile
+        except UserProfile.DoesNotExist:
+            return Response({"detail": "Profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+class S3UserImageManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Upload a file (image or PDF) to S3 under a folder.
+        Send as form-data:
+        - file (required)
+        - folder (optional: defaults to 'magazines')
+        """
+        upload_file = request.FILES.get('image')
+        folder = request.data.get('folder', 'misc')
+
+        if not upload_file:
+            return Response({'error': 'No file provided'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = upload_image_to_s3(image_file=upload_file, folder=folder, bucket=bucket)
+
+        if not response['error']:
+            return Response({
+                'message': response['message'],
+                'url': response['url'],
+                'key': response['key']
+            }, status=200)
+        
+        return Response({'message': response['message']}, status=400)
+
+    def delete(self, request):
+        """
+        Delete a file from S3 by its key:
+        /api/s3-magazine/?key=magazines/filename.pdf
+        """
+        file_key = request.query_params.get('key')
+
+        if not file_key:
+            return Response({'error': 'File key is required'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = delete_image_from_s3(bucket=bucket, image_key=file_key)
+
+        if not response['error']:
+            return Response({'message': response['message']}, status=200)
+
+        return Response({'message': response['message']}, status=400)
