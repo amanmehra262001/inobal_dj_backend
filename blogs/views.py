@@ -53,13 +53,29 @@ class BlogListCreateAPIView(APIView):
     permission_classes = [IsAdminUser]
 
     def get(self, request):
-        blogs = Blog.objects.all().defer('content').order_by('-created_at')
+        staff_param = request.query_params.get("staff")
+        print("blog list create staff_param:", staff_param)
+        blogs = None
+        if staff_param is not None:
+            if staff_param.lower() == "true":
+                blogs = Blog.objects.filter(user__is_staff=True).defer('content').order_by('-created_at')
+            elif staff_param.lower() == "false":
+                blogs = Blog.objects.filter(user__is_staff=False).defer('content').order_by('-created_at')
+            else:
+                return Response(
+                    {"error": "Invalid value for 'staff' parameter. Use 'true' or 'false'."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            blogs = Blog.objects.all().defer('content').order_by('-created_at')
+
+        # blogs = Blog.objects.all().defer('content').order_by('-created_at')
         serializer = BlogSerializer(blogs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         user = request.user
-        serializer = BlogSerializer(data=request.data)
+        serializer = BlogSerializer(data=request.data, context={'request': request})
         is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
             try:
@@ -97,7 +113,7 @@ class BlogDetailAPIView(APIView):
 
     def put(self, request, pk):
         blog = self.get_object(pk)
-        serializer = BlogSerializer(blog, data=request.data)
+        serializer = BlogSerializer(blog, data=request.data, context={'request': request})
         is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
             serializer.save(is_published=is_published)
@@ -140,7 +156,7 @@ class UserBlogListCreateAPIView(APIView):
 
     def post(self, request):
         user = request.user
-        serializer = BlogSerializer(data=request.data)
+        serializer = BlogSerializer(data=request.data, context={'request': request})
         is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
             try:
@@ -181,7 +197,7 @@ class UserBlogDetailAPIView(APIView):
 
     def put(self, request, pk):
         blog = self.get_object(pk)
-        serializer = BlogSerializer(blog, data=request.data)
+        serializer = BlogSerializer(blog, data=request.data, context={'request': request})
         is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
             serializer.save(is_published=is_published)
