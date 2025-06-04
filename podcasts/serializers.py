@@ -22,7 +22,7 @@ class PodcastSerializer(serializers.ModelSerializer):
             'id', 'title', 'description', 'transcript',
             'views', 'duration', 'published_date',
             'audio_url', 'audio_key', 'cover_image_url', 'cover_image_key',
-            'is_published', 'priority',
+            'is_published', 'priority', 'spotify_embed_url',
             'tags', 'tag_ids'
         ]
 

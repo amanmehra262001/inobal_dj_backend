@@ -33,6 +33,8 @@ class Podcast(models.Model):
     cover_image_url = models.URLField(blank=True, null=True)
     cover_image_key = models.CharField(max_length=255, blank=True, null=True)
 
+    spotify_embed_url = models.URLField(blank=True, null=True)  # New field for Spotify embed
+
     tags = models.ManyToManyField(PodcastTag, related_name="podcasts", blank=True)
     priority = models.IntegerField(default=0)
     is_published = models.BooleanField(default=False)
