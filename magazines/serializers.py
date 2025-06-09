@@ -22,7 +22,7 @@ class MagazineSerializer(serializers.ModelSerializer):
             'id', 'name', 'description', 'published_date',
             'is_published', 'views',
             'cover_image_url', 'cover_image_key',
-            'pdf_url', 'pdf_key', 'tags', 'tag_ids',
+            'pdf_url', 'pdf_key', 'show_on_home', 'on_home_priority', 'tags', 'tag_ids',
             'created_at', 'updated_at',
         ]
 

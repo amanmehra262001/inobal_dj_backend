@@ -121,6 +121,40 @@ class PublicMagazinesByYearView(APIView):
         return Response(serializer.data, status=200)
     
 
+class PublicMagazinesForCurrentView(APIView):
+    permission_classes = [AllowAny]  # ✅ public
+    authentication_classes = []
+
+    def get(self, request):
+        magazine = Magazine.objects.filter(is_published=True).order_by('published_date').first()
+
+        magazine = {
+            'id': magazine.id,
+            'name': magazine.name,
+            'published_date': magazine.published_date,
+            'cover_image_url': magazine.cover_image_url if magazine.cover_image_url else None,
+            'cover_image_key': magazine.cover_image_key if magazine.cover_image_key else None,
+            'description': magazine.description,
+            'is_published': magazine.is_published,
+            'show_on_home': magazine.show_on_home,
+            'on_home_priority': magazine.on_home_priority
+        }
+
+        # serializer = MagazineSerializer(magazines, many=True)
+        return Response(magazine, status=200)
+    
+
+class PublicMagazinesForHomeView(APIView):
+    permission_classes = [AllowAny]  # ✅ public
+    authentication_classes = []
+
+    def get(self, request):
+        magazines = Magazine.objects.filter(show_on_home=True).order_by('on_home_priority')
+
+        serializer = MagazineSerializer(magazines, many=True)
+        return Response(serializer.data, status=200)
+    
+
 class MagazineYearsAPIView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []

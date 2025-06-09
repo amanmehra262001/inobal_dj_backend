@@ -2,14 +2,15 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.permissions import AllowAny
-from .models import Book, BookTag
-from .serializers import BookSerializer, BookTagSerializer
+from .models import Book, BookTag, BooksHomeImages
+from .serializers import BookSerializer, BookTagSerializer, BooksHomeImagesSerializer
 from common.views import CustomJWTAuthentication, IsAdminUser
 from common.constants import S3_BOOKS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
+import json
 
 # Create your views here.
 
@@ -167,3 +168,130 @@ class S3BooksImageManager(APIView):
             return Response({'message': response['message']}, status=200)
 
         return Response({'message': response['message']}, status=400)
+
+
+class S3BooksHomeImageManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        """
+        List all images in the BooksHomeImages model.
+        """
+        images = BooksHomeImages.objects.all().order_by('-created_at')
+        serializer = BooksHomeImagesSerializer(images, many=True)
+        return Response(serializer.data, status=200)
+
+
+    def post(self, request):
+        """
+        Upload multiple files (images or PDFs) to S3 under a folder.
+        Send as form-data:
+        - image (can be one or multiple files)
+        - folder (optional: defaults to 'misc')
+        - priority (optional, can be sent per file or defaulted)
+        """
+        files = request.FILES.getlist('image')  # <-- handles multiple files
+        folder = request.data.get('folder', 'misc')
+        priority = int(request.data.get('priority', 0))
+
+        if not files:
+            return Response({'error': 'No files provided'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        uploaded = []
+
+        for index, file in enumerate(files):
+            response = upload_image_to_s3(image_file=file, folder=folder, bucket=bucket)
+            if not response['error']:
+                image_obj = BooksHomeImages.objects.create(
+                    image_url=response['url'],
+                    image_key=response['key'],
+                    priority=priority + index  # Assign incremental priority
+                )
+                uploaded.append({
+                    'message': response['message'],
+                    'url': response['url'],
+                    'key': response['key'],
+                    'priority': image_obj.priority,
+                })
+
+        if uploaded:
+            return Response({'uploaded': uploaded}, status=200)
+        else:
+            return Response({'message': 'No files uploaded successfully'}, status=400)
+
+
+    def patch(self, request):
+        """
+        Update the priority of a specific image.
+        Requires 'image_key' and a new 'priority' in the request body.
+        """
+        data = json.loads(request.body)
+        image_key = data.get('image_key')
+        new_priority = data.get('priority')
+        print("image key:", image_key)
+        print("new priority:", new_priority)
+
+        if new_priority is None:
+            return Response({'error': 'New priority is required.'}, status=400)
+
+        try:
+            new_priority = int(new_priority)
+        except ValueError:
+            return Response({'error': 'Priority must be an integer.'}, status=400)
+
+        try:
+            if image_key:
+                image = BooksHomeImages.objects.get(image_key=image_key)
+            else:
+                return Response({'error': 'Either id or image_key must be provided.'}, status=400)
+        except BooksHomeImages.DoesNotExist:
+            return Response({'error': 'Image not found.'}, status=404)
+
+        image.priority = new_priority
+        image.save()
+
+        return Response({
+            'message': 'Priority updated successfully.',
+            'id': image.id,
+            'image_key': image.image_key,
+            'new_priority': image.priority
+        }, status=200)
+
+
+    def delete(self, request):
+        """
+        Delete a file from S3 by its key:
+        /api/s3-podcasts/?key=podcastss/filename.pdf
+        """
+        file_key = request.query_params.get('key')
+
+        if not file_key:
+            return Response({'error': 'File key is required'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = delete_image_from_s3(bucket=bucket, image_key=file_key)
+
+        if not response['error']:
+            BooksHomeImages.objects.filter(image_key=file_key).delete()
+            return Response({'message': response['message']}, status=200)
+
+        return Response({'message': response['message']}, status=400)
+
+        
+        
+        
+class PublishedS3BooksHomeImageManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        """
+        List all images in the BooksHomeImages model.
+        """
+        images = BooksHomeImages.objects.all().order_by('priority')
+        serializer = BooksHomeImagesSerializer(images, many=True)
+        return Response(serializer.data, status=200)

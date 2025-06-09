@@ -37,6 +37,10 @@ class Magazine(models.Model):
     pdf_url = models.URLField(blank=True, null=True)
     pdf_key = models.CharField(max_length=255, blank=True, null=True)
 
+    # show on homepage
+    show_on_home = models.BooleanField(default=False)
+    on_home_priority = models.IntegerField(default=0)
+
     tags = models.ManyToManyField('MagazineTag', related_name='magazines', blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
