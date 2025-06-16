@@ -191,8 +191,21 @@ class FeaturedPersonDetailView(APIView):
 
     def get(self, request, pk):
         person = get_object_or_404(FeaturedPerson, pk=pk)
+
+        # Get the queryset ordered by id (or any other logic like created_at)
+        all_people = FeaturedPerson.objects.filter(magazine=person.magazine).order_by('id')
+        ids = list(all_people.values_list('id', flat=True))
+        
+        current_index = ids.index(person.id)
+        previous_id = ids[current_index - 1] if current_index > 0 else None
+        next_id = ids[current_index + 1] if current_index < len(ids) - 1 else None
+
         serializer = FeaturedPersonDetailSerializer(person)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = serializer.data
+        data['previous_id'] = previous_id
+        data['next_id'] = next_id
+
+        return Response(data, status=status.HTTP_200_OK)
 
 class CreateFeaturedPersonView(APIView):
     authentication_classes = [CustomJWTAuthentication]
