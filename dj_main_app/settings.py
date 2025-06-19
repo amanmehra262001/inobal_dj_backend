@@ -94,6 +94,8 @@ CSRF_TRUSTED_ORIGINS = [
     "https://api.worthminds.com",
     "https://worthminds.com",
     "https://www.worthminds.com",
+    "https://inobal-magazine-website.vercel.app/",
+    "https://www.inobal-magazine-website.vercel.app/",
 ]
 
 CORS_ALLOWED_ORIGINS = [
