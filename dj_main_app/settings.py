@@ -101,6 +101,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://inobal-magazine-admin.vercel.app",
     "https://inobal-magazine-website-ppls.vercel.app",
+    "https://inobal-magazine-website.vercel.app/",
     "https://worthminds.com",
     "https://api.worthminds.com",
 ]
