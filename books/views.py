@@ -107,7 +107,34 @@ class PublicPublishedBooksAPIView(APIView):
         page = paginator.paginate_queryset(books, request)
         serializer = BookSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
-    
+
+
+class PublicPublishedBooksAPIViewByTags(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        # Step 1: Get the 'tags' query parameter (comma-separated)
+        tags_param = request.query_params.get("tags", "")
+        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
+
+        # Step 2: Get tag objects that match the names
+        tag_qs = BookTag.objects.filter(name__in=tag_names)
+
+        # Step 3: Filter books with those tags, and published
+        books = (
+            Book.objects.filter(is_published=True)
+            .filter(tags__in=tag_qs)
+            .distinct()
+            .order_by('-published_date')
+        )
+
+        # Step 4: Paginate and return the result
+        paginator = StandardResultsSetPagination()
+        page = paginator.paginate_queryset(books, request)
+        serializer = BookSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
 
 class PublicPublishedBookDetailAPIView(APIView):
     permission_classes = [AllowAny]

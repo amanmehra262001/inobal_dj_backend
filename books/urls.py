@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import S3BooksImageManager, BookTagListCreateView, BookTagDetailDeleteView, PublicPublishedBookDetailAPIView, PublicPublishedBooksAPIView, BookListCreateAPIView, BookDetailAPIView, S3BooksHomeImageManager, PublishedS3BooksHomeImageManager
+from .views import S3BooksImageManager, BookTagListCreateView, BookTagDetailDeleteView, PublicPublishedBookDetailAPIView, PublicPublishedBooksAPIView, BookListCreateAPIView, BookDetailAPIView, S3BooksHomeImageManager, PublishedS3BooksHomeImageManager, PublicPublishedBooksAPIViewByTags
 
 urlpatterns = [
     path("tags/", BookTagListCreateView.as_view(), name="book-tag-list-create"),
@@ -9,6 +9,7 @@ urlpatterns = [
     path("details/<int:pk>/", BookDetailAPIView.as_view(), name="book-detail"),
     path("published/", PublicPublishedBooksAPIView.as_view(), name="published-books"),
     path("published/<int:pk>/", PublicPublishedBookDetailAPIView.as_view(), name="published-book-detail"),
+    path("published/by-tags/", PublicPublishedBooksAPIViewByTags.as_view(), name="published-books-by-tags"),
 
 
     path('s3-image/', S3BooksImageManager.as_view(), name='books-s3-image-manager'),

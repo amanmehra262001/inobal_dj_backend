@@ -147,6 +147,38 @@ class PublishedBlogListAPIView(APIView):
 
         serializer = BlogSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
+    
+
+class PublishedBlogListAPIViewByTags(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    class CustomPagination(PageNumberPagination):
+        page_size = 10  # Default page size
+        page_size_query_param = 'page_size'
+        max_page_size = 50
+
+    def get(self, request):
+        # Step 1: Get the 'tags' query parameter (comma-separated)
+        tags_param = request.query_params.get("tags", "")
+        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
+
+        # Step 2: Get tag objects that match the names
+        tag_qs = BlogTag.objects.filter(name__in=tag_names)
+
+        # Step 3: Filter books with those tags, and published
+        books = (
+            Blog.objects.filter(is_published=True)
+            .filter(tags__in=tag_qs)
+            .distinct()
+            .order_by('-created_at')
+        )
+
+        # Step 4: Paginate and return the result
+        paginator = self.CustomPagination()
+        page = paginator.paginate_queryset(books, request)
+        serializer = BlogSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class PublishedBlogDetailAPIView(generics.RetrieveAPIView):
