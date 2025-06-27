@@ -25,4 +25,5 @@ urlpatterns = [
     path('api/contributors/', include('contributors.urls')),
     path('api/podcasts/', include('podcasts.urls')),
     path('api/books/', include('books.urls')),
+    path('api/misc/', include('misc.urls')),
 ]
