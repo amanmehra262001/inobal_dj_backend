@@ -2,7 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Career
-from .serializers import CareerSerializer
+from .serializers import CareerSerializer, BlogNotification, BlogNotificationSerializer
 from django.shortcuts import get_object_or_404
 from common.views import CustomJWTAuthentication, IsAdminUser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -64,4 +64,15 @@ class PublishedCareerListCreateAPIView(APIView):
     def get(self, request):
         careers = Career.objects.filter(is_published=True).order_by('priority')
         serializer = CareerSerializer(careers, many=True)
+        return Response(serializer.data)
+    
+
+class BlogNotificationListAPIView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        notifications = BlogNotification.objects.filter(user=user).order_by('-created_at')
+        serializer = BlogNotificationSerializer(notifications, many=True)
         return Response(serializer.data)

@@ -1,4 +1,6 @@
 from django.db import models
+from user.models import UserAuth
+from blogs.models import Blog
 
 class Career(models.Model):
     WORK_MODES = [
@@ -23,3 +25,25 @@ class Career(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.get_work_mode_display()})"
+
+
+class BlogNotification(models.Model):
+    STATUS_CHOICES = [
+        ('accepted', 'Your article has been successfully uploaded! - Check it out.'),
+        ('pending', 'Your blog is awaiting admin approval.'),
+        ('rejected', 'Your blog has been rejected!'),
+    ]
+
+    user = models.ForeignKey(UserAuth, on_delete=models.CASCADE, related_name='blog_notifications')
+    blog = models.ForeignKey(Blog, on_delete=models.CASCADE, related_name='notifications')  # if you have a Blog model
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Blog Notification"
+        verbose_name_plural = "Blog Notifications"
+
+    def __str__(self):
+        return f"{self.user.email} - {self.get_status_display()}"
