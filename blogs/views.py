@@ -115,8 +115,9 @@ class BlogDetailAPIView(APIView):
         blog = self.get_object(pk)
         serializer = BlogSerializer(blog, data=request.data, context={'request': request})
         is_published = request.data.get("is_published") in ["true", "True", True]
+        is_rejected = request.data.get("is_rejected") in ["true", "True", True]
         if serializer.is_valid():
-            serializer.save(is_published=is_published)
+            serializer.save(is_published=is_published, is_rejected=is_rejected)
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -140,7 +141,7 @@ class PublishedBlogListAPIView(APIView):
         max_page_size = 50
 
     def get(self, request):
-        blogs = Blog.objects.filter(is_published=True).defer('content').order_by('-created_at')
+        blogs = Blog.objects.filter(is_published=True, is_rejected=False).defer('content').order_by('-created_at')
         
         paginator = self.CustomPagination()
         result_page = paginator.paginate_queryset(blogs, request)

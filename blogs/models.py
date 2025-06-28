@@ -47,6 +47,7 @@ class Blog(models.Model):
     tags = models.ManyToManyField('BlogTag', related_name="blogs", blank=True)
 
     is_published = models.BooleanField(default=False)
+    is_rejected = models.BooleanField(default=False)
     priority = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
