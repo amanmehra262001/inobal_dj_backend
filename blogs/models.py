@@ -50,6 +50,7 @@ class Blog(models.Model):
     is_rejected = models.BooleanField(default=False)
     priority = models.IntegerField(default=0)
 
+    published_date = models.DateField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
