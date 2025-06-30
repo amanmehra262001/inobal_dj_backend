@@ -33,7 +33,7 @@ class BlogSerializer(serializers.ModelSerializer):
 
         # Prevent normal users from updating restricted fields
         if getattr(user, 'auth_type_from_token', None) != AUTH_TYPE_ADMIN:
-            for field in ['views', 'priority', 'is_published', 'is_rejected', 'published_date']:
+            for field in ['views', 'priority', 'is_published', 'is_rejected']:
                 validated_data.pop(field, None)
 
         return super().update(instance, validated_data)
@@ -43,7 +43,7 @@ class BlogSerializer(serializers.ModelSerializer):
 
         # Prevent normal users from setting restricted fields
         if getattr(user, 'auth_type_from_token', None) != AUTH_TYPE_ADMIN:
-            for field in ['views', 'priority', 'is_published', 'is_rejected', 'published_date']:
+            for field in ['views', 'priority', 'is_published', 'is_rejected']:
                 validated_data.pop(field, None)
 
         return super().create(validated_data)
