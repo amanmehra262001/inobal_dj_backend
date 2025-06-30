@@ -14,6 +14,9 @@ from common.constants import S3_BLOG_BUCKET_NAME
 from common.utils.s3_utils import delete_image_from_s3, upload_image_to_s3
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.exceptions import PermissionDenied
+from misc.models import BlogNotification
+from django.db import transaction, DatabaseError
+from django.utils import timezone 
 
 
 class BlogTagListCreateView(APIView):
@@ -116,10 +119,46 @@ class BlogDetailAPIView(APIView):
         serializer = BlogSerializer(blog, data=request.data, context={'request': request})
         is_published = request.data.get("is_published") in ["true", "True", True]
         is_rejected = request.data.get("is_rejected") in ["true", "True", True]
-        if serializer.is_valid():
-            serializer.save(is_published=is_published, is_rejected=is_rejected)
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            if serializer.is_valid():
+                with transaction.atomic():
+                    blog = serializer.save(is_published=is_published, is_rejected=is_rejected)
+                    user = blog.user
+                    if hasattr(user, 'profile'):
+                        # check if any blog notification exists for the given blog with status accept or reject exists, if yes, update the same blog notification only
+                        if is_published:
+                            notif, created = BlogNotification.objects.get_or_create(
+                                blog=blog,
+                                status='accepted',
+                                defaults={'user': user}
+                            )
+                            if not created:
+                                notif.is_read = False
+                                notif.created_at = timezone.now()
+                                notif.save(update_fields=['is_read', 'created_at'])
+                        if is_rejected:
+                            notif, created = BlogNotification.objects.get_or_create(
+                                blog=blog,
+                                status='rejected',
+                                defaults={'user': user}
+                            )
+                            if not created:
+                                notif.is_read = False
+                                notif.created_at = timezone.now()
+                                notif.save(update_fields=['is_read', 'created_at'])
+
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as db_err:
+            return Response(
+                {"error": "A database error occurred while updating the blog.", "details": str(db_err)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as exc:
+            return Response(
+                {"error": "An unexpected error occurred while updating the blog.", "details": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def delete(self, request, pk):
         blog = self.get_object(pk)
@@ -202,14 +241,12 @@ class UserBlogListCreateAPIView(APIView):
     def post(self, request):
         user = request.user
         serializer = BlogSerializer(data=request.data, context={'request': request})
-        is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
             try:
                 custom_user = UserAuth.objects.get(id=user.id)
             except UserAuth.DoesNotExist:
-                return Response({"Error": "User not found in UserAuth."}, status=400)
+                return Response({"Error": "User not found in UserAuth."}, status=status.HTTP_400_BAD_REQUEST)
 
-            # get display name depending on profile type
             if hasattr(user, 'profile'):
                 author_name = user.profile.name
             elif hasattr(user, 'admin_profile'):
@@ -217,9 +254,25 @@ class UserBlogListCreateAPIView(APIView):
             else:
                 author_name = 'Unknown'
 
-            # print("Auth Type from Token:", getattr(user, 'auth_type_from_token', 'N/A'))
+            try:
+                with transaction.atomic():
+                    blog = serializer.save(user=custom_user, author=author_name)
+                    BlogNotification.objects.create(
+                        user=custom_user,
+                        blog=blog,
+                        status='pending',
+                    )
+            except DatabaseError as db_err:
+                return Response(
+                    {"error": "A database error occurred while creating the blog or notification.", "details": str(db_err)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            except Exception as exc:
+                return Response(
+                    {"error": "An unexpected error occurred.", "details": str(exc)},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-            serializer.save(user=custom_user, author=author_name, is_published=is_published)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -243,9 +296,8 @@ class UserBlogDetailAPIView(APIView):
     def put(self, request, pk):
         blog = self.get_object(pk)
         serializer = BlogSerializer(blog, data=request.data, context={'request': request})
-        is_published = request.data.get("is_published") in ["true", "True", True]
         if serializer.is_valid():
-            serializer.save(is_published=is_published)
+            serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
