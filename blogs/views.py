@@ -17,6 +17,7 @@ from rest_framework.exceptions import PermissionDenied
 from misc.models import BlogNotification
 from django.db import transaction, DatabaseError
 from django.utils import timezone 
+from datetime import date
 
 
 class BlogTagListCreateView(APIView):
@@ -256,7 +257,8 @@ class UserBlogListCreateAPIView(APIView):
 
             try:
                 with transaction.atomic():
-                    blog = serializer.save(user=custom_user, author=author_name)
+                    # when a contributor creates a blog set the published date to today
+                    blog = serializer.save(user=custom_user, author=author_name, published_date=date.today())
                     BlogNotification.objects.create(
                         user=custom_user,
                         blog=blog,
