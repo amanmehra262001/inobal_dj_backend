@@ -23,6 +23,8 @@ class MagazineTag(models.Model):
 
 # magazines/models.py
 
+from django.db import models
+
 class Magazine(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -33,11 +35,6 @@ class Magazine(models.Model):
     cover_image_url = models.URLField(blank=True, null=True)
     cover_image_key = models.CharField(max_length=255, blank=True, null=True)
 
-    # PDF fields
-    pdf_url = models.URLField(blank=True, null=True)
-    pdf_key = models.CharField(max_length=255, blank=True, null=True)
-
-    # show on homepage
     show_on_home = models.BooleanField(default=False)
     on_home_priority = models.IntegerField(default=0)
 
@@ -52,6 +49,19 @@ class Magazine(models.Model):
     def __str__(self):
         return f"{self.name} - {self.published_date.year}"
 
+class MagazinePage(models.Model):
+    magazine = models.ForeignKey(Magazine, on_delete=models.CASCADE, related_name='pages')
+    page_number = models.PositiveIntegerField()
+    image_url = models.URLField()
+    image_key = models.CharField(max_length=255)
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['page_number']
+
+    def __str__(self):
+        return f"Magazine {self.magazine_id} - Page {self.page_number}"
 
 class FeaturedPerson(models.Model):
     magazine = models.ForeignKey(

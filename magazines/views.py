@@ -4,8 +4,8 @@ from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
-from magazines.models import Magazine, MagazineTag, FeaturedPerson
-from .serializers import MagazineSerializer, MagazineTagSerializer, FeaturedPersonSerializer, FeaturedPersonDetailSerializer, FeaturedPersonListSerializer
+from magazines.models import Magazine, MagazineTag, FeaturedPerson, MagazinePage
+from .serializers import MagazineSerializer, MagazineTagSerializer, FeaturedPersonSerializer, FeaturedPersonDetailSerializer, FeaturedPersonListSerializer, MagazinePageSerializer
 from common.views import CustomJWTAuthentication, IsAdminUser
 from datetime import datetime
 from common.constants import S3_MAGAZINE_BUCKET_NAME, S3_BLOG_BUCKET_NAME
@@ -48,8 +48,21 @@ class MagazineTagDeleteView(generics.DestroyAPIView):
 
 
 # --- Magazine Views ---
+class MagazinePageListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = MagazinePageSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        magazine_id = self.kwargs['magazine_id']
+        return MagazinePage.objects.filter(magazine__id=magazine_id).order_by('page_number')
+
+    def perform_create(self, serializer):
+        magazine_id = self.kwargs['magazine_id']
+        magazine = get_object_or_404(Magazine, id=magazine_id)
+        serializer.save(magazine=magazine)
 
 class MagazineListCreateAPIView(APIView):
+    queryset = Magazine.objects.all().prefetch_related('pages', 'tags')
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
 
@@ -67,6 +80,7 @@ class MagazineListCreateAPIView(APIView):
 
 
 class MagazineDetailAPIView(APIView):
+    queryset = Magazine.objects.all().prefetch_related('pages', 'tags')
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
 
@@ -93,6 +107,7 @@ class MagazineDetailAPIView(APIView):
 
 
 class PublicMagazineDetailView(APIView):
+    queryset = Magazine.objects.all().prefetch_related('pages', 'tags')
     permission_classes = [AllowAny]
     authentication_classes = []
 
@@ -103,6 +118,7 @@ class PublicMagazineDetailView(APIView):
 
 
 class PublicMagazinesByYearView(APIView):
+    queryset = Magazine.objects.all().prefetch_related('pages', 'tags')
     permission_classes = [AllowAny]  # ✅ public
     authentication_classes = []
 
@@ -251,33 +267,51 @@ class S3MagazineFileManager(APIView):
 
     def post(self, request):
         """
-        Upload a file (image or PDF) to S3 under a folder.
+        Upload multiple ordered images to a specific magazine folder.
         Send as form-data:
-        - file (required)
-        - folder (optional: defaults to 'magazines')
+        - files[] (required): multiple images
+        - magazine_id (required): ID used as folder name
         """
-        upload_file = request.FILES.get('file')
-        folder = request.data.get('folder', 'misc')
+        files = request.FILES.getlist('files')
+        magazine_id = request.data.get('magazine_id')
 
-        if not upload_file:
-            return Response({'error': 'No file provided'}, status=400)
+        if not magazine_id:
+            return Response({'error': 'magazine_id is required'}, status=400)
+        if not files:
+            return Response({'error': 'No files provided'}, status=400)
 
         bucket = S3_BLOG_BUCKET_NAME
-        response = upload_image_to_s3(image_file=upload_file, folder=folder, bucket=bucket)
+        folder = f'magazines/{magazine_id}'
 
-        if not response['error']:
-            return Response({
-                'message': response['message'],
+        uploaded = []
+
+        for index, image_file in enumerate(files):
+            # Ensure ordering: page_001.jpg, page_002.jpg...
+            page_number = index + 1
+            file_ext = image_file.name.split('.')[-1].lower()
+            image_file.name = f'page_{page_number:03d}.{file_ext}'
+
+            response = upload_image_to_s3(image_file=image_file, folder=folder, bucket=bucket)
+
+            if response['error']:
+                return Response({'error': f"Failed to upload page {page_number}", 'message': response['message']}, status=400)
+
+            uploaded.append({
                 'url': response['url'],
-                'key': response['key']
-            }, status=200)
-        
-        return Response({'message': response['message']}, status=400)
+                'key': response['key'],
+                'page': page_number
+            })
 
+        return Response({
+            'message': f"{len(uploaded)} pages uploaded",
+            'pages': uploaded
+        }, status=200)
+    
+    
     def delete(self, request):
         """
-        Delete a file from S3 by its key:
-        /api/s3-magazine/?key=magazines/filename.pdf
+        Delete a specific page from a magazine by its key:
+        /api/s3-magazine/?key=magazines/123/page_003.jpg
         """
         file_key = request.query_params.get('key')
 
@@ -288,9 +322,117 @@ class S3MagazineFileManager(APIView):
         response = delete_image_from_s3(bucket=bucket, image_key=file_key)
 
         if not response['error']:
-            return Response({'message': response['message']}, status=200)
+            return Response({'message': 'Page deleted successfully'}, status=200)
 
-        return Response({'message': response['message']}, status=400)
+        return Response({'error': response['message']}, status=400)
+
+
+    def put(self, request):
+        """
+        Replace a specific page in a magazine.
+        Send as form-data:
+        - file: new image
+        - magazine_id: ID
+        - page: page number to replace (starts at 1)
+        """
+        image_file = request.FILES.get('file')
+        magazine_id = request.data.get('magazine_id')
+        page = request.data.get('page')
+
+        if not (image_file and magazine_id and page):
+            return Response({'error': 'file, magazine_id and page are required'}, status=400)
+
+        try:
+            page = int(page)
+        except ValueError:
+            return Response({'error': 'Page must be an integer'}, status=400)
+
+        try:
+            magazine = Magazine.objects.get(id=magazine_id)
+        except Magazine.DoesNotExist:
+            return Response({'error': 'Magazine not found'}, status=404)
+
+        # Compose key
+        bucket = S3_BLOG_BUCKET_NAME
+        folder = f'magazines/{magazine_id}'
+        file_ext = image_file.name.split('.')[-1].lower()
+        image_file.name = f'page_{page:03d}.{file_ext}'
+        key = f'{folder}/{image_file.name}'
+
+        # Delete from S3 first
+        delete_image_from_s3(bucket=bucket, image_key=key)
+
+        # Upload to S3
+        response = upload_image_to_s3(image_file=image_file, folder=folder, bucket=bucket)
+
+        if response['error']:
+            return Response({'error': 'Failed to replace page', 'message': response['message']}, status=400)
+
+        # ✅ UPDATE EXISTING RECORD OR CREATE NEW ONE
+        MagazinePage.objects.update_or_create(
+            magazine=magazine,
+            page_number=page,
+            defaults={
+                'image_url': response['url'],
+                'image_key': response['key'],
+            }
+        )
+
+        return Response({
+            'message': 'Page replaced',
+            'url': response['url'],
+            'key': response['key']
+        }, status=200)
+
+
+
+# class S3MagazineFileManager(APIView):
+#     parser_classes = (MultiPartParser, FormParser)
+#     authentication_classes = [CustomJWTAuthentication]
+#     permission_classes = [IsAdminUser]
+
+#     def post(self, request):
+#         """
+#         Upload a file (image or PDF) to S3 under a folder.
+#         Send as form-data:
+#         - file (required)
+#         - folder (optional: defaults to 'magazines')
+#         """
+#         upload_file = request.FILES.get('file')
+#         folder = request.data.get('folder', 'misc')
+
+#         if not upload_file:
+#             return Response({'error': 'No file provided'}, status=400)
+
+#         bucket = S3_BLOG_BUCKET_NAME
+#         response = upload_image_to_s3(image_file=upload_file, folder=folder, bucket=bucket)
+
+#         if not response['error']:
+#             return Response({
+#                 'message': response['message'],
+#                 'url': response['url'],
+#                 'key': response['key']
+#             }, status=200)
+        
+#         return Response({'message': response['message']}, status=400)
+
+#     def delete(self, request):
+#         """
+#         Delete a file from S3 by its key:
+#         /api/s3-magazine/?key=magazines/filename.pdf
+#         """
+#         file_key = request.query_params.get('key')
+
+#         if not file_key:
+#             return Response({'error': 'File key is required'}, status=400)
+
+#         bucket = S3_BLOG_BUCKET_NAME
+#         response = delete_image_from_s3(bucket=bucket, image_key=file_key)
+
+#         if not response['error']:
+#             return Response({'message': response['message']}, status=200)
+
+#         return Response({'message': response['message']}, status=400)
 
 
 class S3MagazineImageManager(APIView):
