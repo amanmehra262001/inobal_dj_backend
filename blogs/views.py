@@ -258,7 +258,7 @@ class UserBlogListCreateAPIView(APIView):
             try:
                 with transaction.atomic():
                     # when a contributor creates a blog set the published date to today
-                    blog = serializer.save(user=custom_user, author=author_name, published_date=date.today())
+                    blog = serializer.save(user=custom_user, author=author_name)
                     BlogNotification.objects.create(
                         user=custom_user,
                         blog=blog,
