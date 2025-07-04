@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Book, BookTag, BooksHomeImages
+from .models import Book, BookTag, BooksHomeImages, BooksHomeDetails
 
 
 class BookTagSerializer(serializers.ModelSerializer):
@@ -63,3 +63,9 @@ class BooksHomeImagesSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+    
+
+class BooksHomeDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BooksHomeDetails
+        fields = '__all__'

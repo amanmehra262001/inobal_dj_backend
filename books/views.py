@@ -1,9 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, generics
+from rest_framework import status, generics, permissions
 from rest_framework.permissions import AllowAny
-from .models import Book, BookTag, BooksHomeImages
-from .serializers import BookSerializer, BookTagSerializer, BooksHomeImagesSerializer
+from .models import Book, BookTag, BooksHomeImages, BooksHomeDetails
+from .serializers import BookSerializer, BookTagSerializer, BooksHomeImagesSerializer, BooksHomeDetailsSerializer
 from common.views import CustomJWTAuthentication, IsAdminUser
 from common.constants import S3_BOOKS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -11,6 +11,7 @@ from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 import json
+from django.db import models
 
 # Create your views here.
 
@@ -87,6 +88,69 @@ class BookDetailAPIView(APIView):
         book = self.get_object(pk)
         book.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# Public GET endpoint
+class HomePublicBookImageView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        """
+        List all images in the BooksHomeImages model.
+        """
+        images = BooksHomeImages.objects.all().order_by('priority')
+        serializer = BooksHomeImagesSerializer(images, many=True)
+        return Response(serializer.data, status=200)
+
+
+class HomePublicBookView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        try:
+            book = BooksHomeDetails.objects.filter(is_published=True).latest("published_date")
+            serializer = BooksHomeDetailsSerializer(book)
+            return Response(serializer.data, status=200)
+        except BooksHomeDetails.DoesNotExist:
+            return Response({"detail": "No published book found."}, status=404)
+
+
+# Admin-only POST and PATCH
+class HomeAdminBookView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        """
+        Create or overwrite the only book instance.
+        If a book already exists, reject the request.
+        """
+        if BooksHomeDetails.objects.exists():
+            return Response({"error": "A book already exists. Use PATCH to update."}, status=400)
+
+        serializer = BooksHomeDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+    def patch(self, request):
+        """
+        Update the only existing book.
+        """
+        try:
+            book = BooksHomeDetails.objects.latest("published_date")  # or .first() if order doesn't matter
+        except BooksHomeDetails.DoesNotExist:
+            return Response({"error": "No book found to update."}, status=404)
+
+        serializer = BooksHomeDetailsSerializer(book, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+        return Response(serializer.errors, status=400)
+
 
 
 
@@ -217,11 +281,9 @@ class S3BooksHomeImageManager(APIView):
         Send as form-data:
         - image (can be one or multiple files)
         - folder (optional: defaults to 'misc')
-        - priority (optional, can be sent per file or defaulted)
         """
-        files = request.FILES.getlist('image')  # <-- handles multiple files
+        files = request.FILES.getlist('image')
         folder = request.data.get('folder', 'misc')
-        priority = int(request.data.get('priority', 0))
 
         if not files:
             return Response({'error': 'No files provided'}, status=400)
@@ -229,13 +291,17 @@ class S3BooksHomeImageManager(APIView):
         bucket = S3_BLOG_BUCKET_NAME
         uploaded = []
 
+        # Get current max priority (or -1 if none exist)
+        max_priority = BooksHomeImages.objects.aggregate(max_priority=models.Max('priority'))['max_priority'] or -1
+
         for index, file in enumerate(files):
             response = upload_image_to_s3(image_file=file, folder=folder, bucket=bucket)
             if not response['error']:
+                priority = max_priority + 1 + index  # Always append after the last priority
                 image_obj = BooksHomeImages.objects.create(
                     image_url=response['url'],
                     image_key=response['key'],
-                    priority=priority + index  # Assign incremental priority
+                    priority=priority,
                 )
                 uploaded.append({
                     'message': response['message'],
@@ -253,13 +319,12 @@ class S3BooksHomeImageManager(APIView):
     def patch(self, request):
         """
         Update the priority of a specific image.
-        Requires 'image_key' and a new 'priority' in the request body.
+        Requires 'image_key' and new 'priority' in the request body.
+        Ensures no two images have the same priority by shifting others accordingly.
         """
         data = json.loads(request.body)
         image_key = data.get('image_key')
         new_priority = data.get('priority')
-        print("image key:", image_key)
-        print("new priority:", new_priority)
 
         if new_priority is None:
             return Response({'error': 'New priority is required.'}, status=400)
@@ -270,22 +335,43 @@ class S3BooksHomeImageManager(APIView):
             return Response({'error': 'Priority must be an integer.'}, status=400)
 
         try:
-            if image_key:
-                image = BooksHomeImages.objects.get(image_key=image_key)
-            else:
-                return Response({'error': 'Either id or image_key must be provided.'}, status=400)
+            image = BooksHomeImages.objects.get(image_key=image_key)
         except BooksHomeImages.DoesNotExist:
             return Response({'error': 'Image not found.'}, status=404)
 
+        current_priority = image.priority
+        if current_priority == new_priority:
+            return Response({'message': 'Priority is already set to this value.'}, status=200)
+
+        # Update other images' priorities
+        if new_priority < current_priority:
+            # Shift up (move others down)
+            affected_images = BooksHomeImages.objects.filter(
+                priority__gte=new_priority, priority__lt=current_priority
+            ).exclude(image_key=image_key)
+            for img in affected_images:
+                img.priority += 1
+                img.save()
+        else:
+            # Shift down (move others up)
+            affected_images = BooksHomeImages.objects.filter(
+                priority__lte=new_priority, priority__gt=current_priority
+            ).exclude(image_key=image_key)
+            for img in affected_images:
+                img.priority -= 1
+                img.save()
+
+        # Update current image
         image.priority = new_priority
         image.save()
 
         return Response({
-            'message': 'Priority updated successfully.',
+            'message': 'Priority updated and reordered successfully.',
             'id': image.id,
             'image_key': image.image_key,
             'new_priority': image.priority
         }, status=200)
+
 
 
     def delete(self, request):

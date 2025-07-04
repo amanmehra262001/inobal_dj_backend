@@ -57,3 +57,15 @@ class BooksHomeImages(models.Model):
 
     def __str__(self):
         return self.image_key
+
+
+class BooksHomeDetails(models.Model):
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    published_date = models.DateField()
+    affiliate_link = models.URLField(blank=True, null=True)
+
+    is_published = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.title
