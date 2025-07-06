@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Career, BlogNotification
+from .models import Career, BlogNotification, Advertisement
 
 class CareerSerializer(serializers.ModelSerializer):
     work_mode_display = serializers.SerializerMethodField()
@@ -30,3 +30,8 @@ class BlogNotificationSerializer(serializers.ModelSerializer):
             'blog_id',
             'blog_title',
         ]
+
+class AdvertisementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Advertisement
+        fields = '__all__'

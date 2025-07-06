@@ -1,6 +1,8 @@
 from django.db import models
 from user.models import UserAuth
 from blogs.models import Blog
+from django.core.exceptions import ValidationError
+
 
 class Career(models.Model):
     WORK_MODES = [
@@ -47,3 +49,31 @@ class BlogNotification(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.get_status_display()}"
+
+
+class Advertisement(models.Model):
+    ORIENTATION_CHOICES = [
+        ('horizontal', 'Horizontal'),
+        ('vertical', 'Vertical'),
+    ]
+
+    orientation = models.CharField(
+        max_length=10,
+        choices=ORIENTATION_CHOICES,
+        unique=True,  # ensures only one entry per orientation
+    )
+    image_url = models.URLField()
+    image_key = models.CharField(max_length=255)
+    form_link = models.URLField()
+
+    def clean(self):
+        # Enforce only one entry per orientation at a time
+        if Advertisement.objects.exclude(pk=self.pk).count() >= 2:
+            raise ValidationError("Only two advertisement entries (horizontal & vertical) are allowed.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # trigger validation on save
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.orientation.title()} Ad"

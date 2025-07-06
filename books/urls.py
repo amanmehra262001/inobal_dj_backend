@@ -13,8 +13,8 @@ urlpatterns = [
 
     path('home/details/', HomePublicBookView.as_view(), name='books-home-details'),
     path('home/images/', HomePublicBookImageView.as_view(), name='books-home-images'),
+    
     path('home/admin/', HomeAdminBookView.as_view(), name='books-home-details-admin-manager'),
-
 
     path('s3-image/', S3BooksImageManager.as_view(), name='books-s3-image-manager'),
     path('s3-image/home/', S3BooksHomeImageManager.as_view(), name='books-home-s3-image-manager'),
