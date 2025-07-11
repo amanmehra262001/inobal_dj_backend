@@ -77,3 +77,48 @@ class Advertisement(models.Model):
 
     def __str__(self):
         return f"{self.orientation.title()} Ad"
+
+class Event(models.Model):
+    title = models.CharField(max_length=255)
+    short_description = models.TextField(max_length=300)
+    long_description = models.TextField()
+    date = models.DateField()
+    is_published = models.BooleanField(default=False)
+
+    cover_image = models.ImageField(upload_to='events/covers/', null=True, blank=True)
+    banner_image = models.ImageField(upload_to='events/banners/', null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+
+class Activity(models.Model):
+    event = models.ForeignKey(Event, related_name="activities", on_delete=models.CASCADE)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    description = models.TextField()
+
+    def __str__(self):
+        return f"{self.description[:50]} ({self.start_time} - {self.end_time})"
+
+
+class EventForm(models.Model):
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    
+    event = models.ForeignKey('Event', related_name='submissions', on_delete=models.CASCADE)
+    
+    company_name = models.CharField(max_length=200, blank=True, null=True)
+    title_at_company = models.CharField(max_length=150, blank=True, null=True)
+    message = models.TextField(blank=True, null=True)
+
+    email = models.EmailField(blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.event.title}"
