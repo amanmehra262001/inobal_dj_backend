@@ -2,6 +2,8 @@ from django.db import models
 from user.models import UserAuth
 from blogs.models import Blog
 from django.core.exceptions import ValidationError
+from django.utils.text import slugify
+import uuid
 
 
 class Career(models.Model):
@@ -80,9 +82,10 @@ class Advertisement(models.Model):
 
 class Event(models.Model):
     title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True, blank=True)
     short_description = models.TextField(max_length=300)
     long_description = models.TextField()
-    date = models.DateField()
+    event_date = models.DateField()
     is_published = models.BooleanField(default=False)
 
     cover_image = models.ImageField(upload_to='events/covers/', null=True, blank=True)
@@ -90,6 +93,15 @@ class Event(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.title)
+            unique_slug = base_slug
+            while Event.objects.filter(slug=unique_slug).exists():
+                unique_slug = f"{base_slug}-{uuid.uuid4().hex[:6]}"
+            self.slug = unique_slug
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
@@ -106,19 +118,17 @@ class Activity(models.Model):
 
 
 class EventForm(models.Model):
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    
     event = models.ForeignKey('Event', related_name='submissions', on_delete=models.CASCADE)
-    
-    company_name = models.CharField(max_length=200, blank=True, null=True)
-    title_at_company = models.CharField(max_length=150, blank=True, null=True)
-    message = models.TextField(blank=True, null=True)
 
-    email = models.EmailField(blank=True, null=True)
-    phone_number = models.CharField(max_length=20, blank=True, null=True)
-    
+    full_name = models.CharField(max_length=200)
+    email = models.EmailField()
+    phone_number = models.CharField(max_length=20)
+    city_country = models.CharField(max_length=150)
+    professional_title_organization = models.CharField(max_length=255)
+    linkedin_or_website = models.URLField(blank=True, null=True)
+    updated_profile = models.URLField(blank=True, null=True)
+
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} - {self.event.title}"
+        return f"{self.full_name} - {self.event.title}"

@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Career, Advertisement
-from .serializers import CareerSerializer, BlogNotification, BlogNotificationSerializer, AdvertisementSerializer
+from .models import Career, Advertisement, Event, Activity, EventForm
+from .serializers import CareerSerializer, BlogNotification, BlogNotificationSerializer, AdvertisementSerializer, EventFormSerializer, ActivitySerializer, EventSerializer
 from django.shortcuts import get_object_or_404
 from common.views import CustomJWTAuthentication, IsAdminUser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -136,6 +136,153 @@ class AdvertisementAdminView(APIView):
         return Response({"message": "Advertisement deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
+# -------- Event Views --------
+# Public View: List and Create Events
+class EventDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug=None):
+        if slug:
+            try:
+                event = Event.objects.get(slug=slug)
+                serializer = EventSerializer(event)
+                return Response(serializer.data)
+            except Event.DoesNotExist:
+                return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            events = Event.objects.all()
+            serializer = EventSerializer(events, many=True)
+            return Response(serializer.data)
+
+
+# Admin View: Retrieve, Update, Delete Single Event by Slug
+class EventDetailAdminView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get_object(self, slug):
+        try:
+            return Event.objects.get(slug=slug)
+        except Event.DoesNotExist:
+            return None
+
+    def post(self, request):
+        serializer = EventSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()  # slug will be auto-generated in model
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def patch(self, request, slug):
+        event = self.get_object(slug)
+        if not event:
+            return Response({"error": "Not found"}, status=404)
+        serializer = EventSerializer(event, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
+
+    def delete(self, request, slug):
+        event = self.get_object(slug)
+        if not event:
+            return Response({"error": "Not found"}, status=404)
+        event.delete()
+        return Response(status=204)
+
+
+# -------- Activity Views --------
+class ActivityAdminView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request, event_id):
+        try:
+            event = Event.objects.get(pk=event_id)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=404)
+
+        serializer = ActivitySerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(event=event)
+            return Response(serializer.data, status=201)
+        return Response(serializer.errors, status=400)
+
+
+# -------- EventForm Views --------
+class EventFormCreateView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = EventFormSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": "Form submitted successfully."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class EventFormListAdminView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        forms = EventForm.objects.all().order_by("-submitted_at")
+        serializer = EventFormSerializer(forms, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class S3DocumentManager(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    # authentication_classes = [CustomJWTAuthentication]
+    # permission_classes = [IsAdminUser]
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        """
+        Upload an image to a folder.
+        Example: POST with 'image' in form-data, optional 'folder'
+        """
+        image_file = request.FILES.get('image')
+        folder = request.data.get('folder', 'cover')
+
+        if not image_file:
+            return Response({'error': 'No image file provided'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+        response = upload_image_to_s3(image_file=image_file, folder=folder, bucket=bucket)
+
+        if not response['error']:
+            print('Response message:', response['message'], 'url:', response['url'])
+            return Response({'message': response['message'], 'url': response['url'], 'key': response['key']}, status=200)
+        
+        if response['error']:
+            print('Response error message:', response['message'])
+            return Response({'message': response['message']}, status=400)
+        
+
+    def delete(self, request):
+        """
+        Delete an image from S3.
+        Example: DELETE /api/s3-image/?key=cover/image.jpg
+        """
+        image_key = request.query_params.get('key')
+
+        if not image_key:
+            return Response({'error': 'Image key is required'}, status=400)
+
+        bucket = S3_BLOG_BUCKET_NAME
+
+        response = delete_image_from_s3(bucket=bucket, image_key=image_key)
+
+        if not response['error']:
+            print('Response message:', response['message'], image_key)
+            return Response({'message':response['message']}, status=200)
+        
+        if response['error']:
+            print('Response error message:', response['message'])
+            return Response({'message':response['message']}, status=400)
+        
+
 class S3ImageManager(APIView):
     parser_classes = (MultiPartParser, FormParser)
     authentication_classes = [CustomJWTAuthentication]
@@ -186,4 +333,3 @@ class S3ImageManager(APIView):
         if response['error']:
             print('Response error message:', response['message'])
             return Response({'message':response['message']}, status=400)
-
