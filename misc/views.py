@@ -155,7 +155,20 @@ class EventDetailView(APIView):
             return Response(serializer.data)
 
 
-# Admin View: Retrieve, Update, Delete Single Event by Slug
+# Create separate class for creating new events
+class EventCreateAdminView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = EventSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+
+# Existing view for PATCH/DELETE based on slug
 class EventDetailAdminView(APIView):
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
@@ -166,14 +179,7 @@ class EventDetailAdminView(APIView):
         except Event.DoesNotExist:
             return None
 
-    def post(self, request):
-        serializer = EventSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()  # slug will be auto-generated in model
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def patch(self, request, slug=None):
+    def patch(self, request, slug):
         event = self.get_object(slug)
         if not event:
             return Response({"error": "Not found"}, status=404)
@@ -189,6 +195,7 @@ class EventDetailAdminView(APIView):
             return Response({"error": "Not found"}, status=404)
         event.delete()
         return Response(status=204)
+
 
 
 # -------- Activity Views --------

@@ -1,7 +1,7 @@
 # careers/urls.py
 
 from django.urls import path
-from .views import CareerListCreateAPIView, CareerDetailAPIView, PublishedCareerListCreateAPIView, BlogNotificationListAPIView, AdvertisementPublicView, AdvertisementAdminView, S3ImageManager, EventDetailView, EventDetailAdminView, ActivityAdminView, EventFormCreateView, EventFormListAdminView, S3DocumentManager
+from .views import CareerListCreateAPIView, CareerDetailAPIView, PublishedCareerListCreateAPIView, BlogNotificationListAPIView, AdvertisementPublicView, AdvertisementAdminView, S3ImageManager, EventDetailView, EventDetailAdminView, ActivityAdminView, EventFormCreateView, EventFormListAdminView, S3DocumentManager, EventCreateAdminView
 
 urlpatterns = [
     path('careers/', CareerListCreateAPIView.as_view(), name='career-list-create'),
@@ -25,8 +25,8 @@ urlpatterns = [
     # Event admin endpoints
     path('events/', EventDetailView.as_view(), name='event-details'),
     path('events/<slug:slug>/', EventDetailView.as_view(), name='event-details-slug'),
-    path('events/admin/', EventDetailAdminView.as_view(), name='event-detail-admin'),
-    path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-detail-admin'),
+    path('events/admin/', EventCreateAdminView.as_view(), name='event-admin-create'),
+    path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-admin-detail'),
 
     # EventForm view (admin only)
     path('eventforms/all/', EventFormListAdminView.as_view(), name='eventform-list'),
