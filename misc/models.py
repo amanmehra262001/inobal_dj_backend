@@ -88,8 +88,10 @@ class Event(models.Model):
     event_date = models.DateField()
     is_published = models.BooleanField(default=False)
 
-    cover_image = models.ImageField(upload_to='events/covers/', null=True, blank=True)
-    banner_image = models.ImageField(upload_to='events/banners/', null=True, blank=True)
+    cover_image_url = models.URLField(null=True, blank=True)
+    cover_image_key = models.CharField(max_length=255, null=True, blank=True)
+    banner_image_url = models.URLField(null=True, blank=True)
+    banner_image_key = models.CharField(max_length=255, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
