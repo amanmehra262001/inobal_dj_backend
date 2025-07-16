@@ -14,19 +14,19 @@ urlpatterns = [
     path('ads/admin/<int:pk>/', AdvertisementAdminView.as_view(), name='ads-admin-update'),
     path('ads/images/', S3ImageManager.as_view(), name='ads-image-manager'),
 
-    # Event admin endpoints
-    path('events/', EventDetailView.as_view(), name='event-details'),
-    path('events/<slug:slug>/', EventDetailView.as_view(), name='event-details-slug'),
-    path('events/admin/', EventDetailAdminView.as_view(), name='event-detail-admin'),
-    path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-detail-admin'),
-
     # Activities (nested under Event)
     path('events/<int:event_id>/activities/', ActivityAdminView.as_view(), name='activity-admin'),
 
     # EventForm submission (public)
     path('eventforms/submit/', EventFormCreateView.as_view(), name='eventform-submit'),
     path('eventforms/document/', S3DocumentManager.as_view(), name='eventform-document-manager'),
-    path('events/admin/images/', S3ImageManager.as_view(), name='events-image-manager'),
+    path('events/manage/admin/images/', S3ImageManager.as_view(), name='events-image-manager'),
+
+    # Event admin endpoints
+    path('events/', EventDetailView.as_view(), name='event-details'),
+    path('events/<slug:slug>/', EventDetailView.as_view(), name='event-details-slug'),
+    path('events/admin/', EventDetailAdminView.as_view(), name='event-detail-admin'),
+    path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-detail-admin'),
 
     # EventForm view (admin only)
     path('eventforms/all/', EventFormListAdminView.as_view(), name='eventform-list'),

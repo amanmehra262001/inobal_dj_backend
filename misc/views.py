@@ -173,7 +173,7 @@ class EventDetailAdminView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def patch(self, request, slug):
+    def patch(self, request, slug=None):
         event = self.get_object(slug)
         if not event:
             return Response({"error": "Not found"}, status=404)
