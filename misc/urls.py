@@ -25,6 +25,7 @@ urlpatterns = [
     # EventForm submission (public)
     path('eventforms/submit/', EventFormCreateView.as_view(), name='eventform-submit'),
     path('eventforms/document/', S3DocumentManager.as_view(), name='eventform-document-manager'),
+    path('events/images/', S3ImageManager.as_view(), name='events-image-manager'),
 
     # EventForm view (admin only)
     path('eventforms/all/', EventFormListAdminView.as_view(), name='eventform-list'),
