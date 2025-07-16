@@ -17,6 +17,7 @@ urlpatterns = [
     # Event admin endpoints
     path('events/', EventDetailView.as_view(), name='event-details'),
     path('events/<slug:slug>/', EventDetailView.as_view(), name='event-details-slug'),
+    path('events/admin/', EventDetailAdminView.as_view(), name='event-detail-admin'),
     path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-detail-admin'),
 
     # Activities (nested under Event)
