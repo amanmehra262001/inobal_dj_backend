@@ -1,5 +1,3 @@
-# careers/urls.py
-
 from django.urls import path
 from .views import CareerListCreateAPIView, CareerDetailAPIView, PublishedCareerListCreateAPIView, BlogNotificationListAPIView, AdvertisementPublicView, AdvertisementAdminView, S3ImageManager, EventDetailView, EventDetailAdminView, ActivityAdminView, EventFormCreateView, EventFormListAdminView, S3DocumentManager, EventCreateAdminView
 
