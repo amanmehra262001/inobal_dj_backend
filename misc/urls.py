@@ -27,5 +27,5 @@ urlpatterns = [
     path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-admin-detail'),
 
     # EventForm view (admin only)
-    path('eventforms/all/', EventFormListAdminView.as_view(), name='eventform-list'),
+    path('eventforms/all/<slug:slug>/', EventFormListAdminView.as_view(), name='eventform-list'),
 ]

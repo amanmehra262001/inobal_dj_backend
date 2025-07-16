@@ -232,8 +232,13 @@ class EventFormListAdminView(APIView):
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
 
-    def get(self, request):
-        forms = EventForm.objects.all().order_by("-submitted_at")
+    def get(self, request, slug):
+        try:
+            event = Event.objects.get(slug=slug)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        forms = EventForm.objects.filter(event=event).order_by("-submitted_at")
         serializer = EventFormSerializer(forms, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
