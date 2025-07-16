@@ -25,7 +25,7 @@ urlpatterns = [
     # Event admin endpoints
     path('events/', EventDetailView.as_view(), name='event-details'),
     path('events/<slug:slug>/', EventDetailView.as_view(), name='event-details-slug'),
-    path('events/admin/', EventCreateAdminView.as_view(), name='event-admin-create'),
+    path('events/admin/create/', EventCreateAdminView.as_view(), name='event-admin-create'),
     path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-admin-detail'),
 
     # EventForm view (admin only)
