@@ -138,6 +138,24 @@ class AdvertisementAdminView(APIView):
 
 
 # -------- Event Views --------
+# Public View: List and Create Events
+class EventDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug=None):
+        if slug:
+            try:
+                event = Event.objects.get(slug=slug)
+                serializer = EventSerializer(event)
+                return Response(serializer.data)
+            except Event.DoesNotExist:
+                return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            events = Event.objects.all()
+            serializer = EventSerializer(events, many=True)
+            return Response(serializer.data)
+
+            
 # Create separate class for creating new events
 class EventCreateAdminView(APIView):
     authentication_classes = [CustomJWTAuthentication]
