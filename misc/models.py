@@ -91,6 +91,7 @@ class Event(models.Model):
     end_time = models.TimeField(null=True, blank=True)
     timezone = models.CharField(max_length=50, default='UTC')
     location = models.CharField(max_length=255, null=True, blank=True)
+    event_type = models.CharField(max_length=255, null=True, blank=True)
 
     is_published = models.BooleanField(default=False)
 
