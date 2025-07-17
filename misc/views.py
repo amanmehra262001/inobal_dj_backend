@@ -163,7 +163,7 @@ class EventCreateAdminView(APIView):
 
     def post(self, request):
         data = request.data.copy()
-        activities_raw = data.get('activities')
+        activities_raw = request.POST.get("activities")
         if activities_raw:
             data['activities'] = json.loads(activities_raw)
         serializer = EventSerializer(data=data)
@@ -189,17 +189,39 @@ class EventDetailAdminView(APIView):
         event = self.get_object(slug)
         if not event:
             return Response({"error": "Not found"}, status=404)
-        
-        data = request.data.copy()
-        activities_raw = data.get('activities')
-        if activities_raw:
-            data['activities'] = json.loads(activities_raw)
 
+        # Convert QueryDict to a normal dict first
+        data = dict(request.data)
+
+        # Flatten single-value fields
+        for k, v in data.items():
+            if isinstance(v, list) and len(v) == 1:
+                data[k] = v[0]
+
+        # Handle activities
+        activities_raw = data.get("activities") or request.POST.get("activities")
+        if activities_raw:
+            try:
+                activities = json.loads(activities_raw) if isinstance(activities_raw, str) else activities_raw
+                if not activities:
+                    return Response(
+                        {
+                            "error": "Activities list cannot be empty.",
+                            "activities": activities,
+                        },
+                        status=400
+                    )
+                data["activities"] = activities
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid activities JSON"}, status=400)
+
+        # Now pass to serializer
         serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+
 
 
     def delete(self, request, slug):

@@ -62,6 +62,7 @@ class EventSerializer(serializers.ModelSerializer):
         return event
 
     def update(self, instance, validated_data):
+        print("validated_data before popping activities:", validated_data)
         activities_data = validated_data.pop('activities', None)
 
         # Update event fields
