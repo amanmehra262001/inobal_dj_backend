@@ -86,6 +86,10 @@ class Event(models.Model):
     short_description = models.TextField(max_length=300)
     long_description = models.TextField()
     event_date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
+    location = models.CharField(max_length=255, null=True, blank=True)
+
     is_published = models.BooleanField(default=False)
 
     cover_image_url = models.URLField(null=True, blank=True)
