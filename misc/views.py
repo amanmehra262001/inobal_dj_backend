@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.constants import S3_BLOG_BUCKET_NAME
 from common.utils.s3_utils import delete_image_from_s3, upload_image_to_s3
+import json
 
 class CareerListCreateAPIView(APIView):
     authentication_classes = [CustomJWTAuthentication]
@@ -137,36 +138,23 @@ class AdvertisementAdminView(APIView):
 
 
 # -------- Event Views --------
-# Public View: List and Create Events
-class EventDetailView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, slug=None):
-        if slug:
-            try:
-                event = Event.objects.get(slug=slug)
-                serializer = EventSerializer(event)
-                return Response(serializer.data)
-            except Event.DoesNotExist:
-                return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
-        else:
-            events = Event.objects.all()
-            serializer = EventSerializer(events, many=True)
-            return Response(serializer.data)
-
-
 # Create separate class for creating new events
 class EventCreateAdminView(APIView):
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
 
     def post(self, request):
-        serializer = EventSerializer(data=request.data)
+        data = request.data.copy()
+        activities_raw = data.get('activities')
+        if activities_raw:
+            data['activities'] = json.loads(activities_raw)
+        serializer = EventSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    
+
+
 
 # Existing view for PATCH/DELETE based on slug
 class EventDetailAdminView(APIView):
@@ -183,11 +171,18 @@ class EventDetailAdminView(APIView):
         event = self.get_object(slug)
         if not event:
             return Response({"error": "Not found"}, status=404)
-        serializer = EventSerializer(event, data=request.data, partial=True)
+        
+        data = request.data.copy()
+        activities_raw = data.get('activities')
+        if activities_raw:
+            data['activities'] = json.loads(activities_raw)
+
+        serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=400)
+
 
     def delete(self, request, slug):
         event = self.get_object(slug)
