@@ -90,12 +90,6 @@ class PodcastDetailAPIView(APIView):
 
 # Public View for Published Podcasts
 class StandardResultsSetPagination(PageNumberPagination):
-    page_size = 10  # Default page size
-    page_size_query_param = 'page_size'
-    max_page_size = 100
-
-
-class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 100
@@ -107,13 +101,18 @@ class PublicPublishedPodcastListAPIView(APIView):
 
     def get(self, request):
         podcast_id = request.query_params.get("id")
+        sort_order = request.query_params.get("sort", "newest")
 
         if podcast_id:
             podcast = generics.get_object_or_404(Podcast, pk=podcast_id, is_published=True)
             serializer = PodcastSerializer(podcast)
             return Response(serializer.data)
 
-        podcasts = Podcast.objects.filter(is_published=True).defer('transcript').order_by("-published_date")
+        # Determine ordering
+        ordering = "-published_date" if sort_order == "newest" else "published_date"
+
+        podcasts = Podcast.objects.filter(is_published=True).defer('transcript').order_by(ordering)
+
         paginator = StandardResultsSetPagination()
         paginated_qs = paginator.paginate_queryset(podcasts, request)
         serializer = PodcastListSerializer(paginated_qs, many=True)
@@ -125,22 +124,21 @@ class PublicPublishedPodcastListAPIViewByTags(APIView):
     authentication_classes = []
 
     def get(self, request):
-        # Step 1: Get the 'tags' query parameter (comma-separated)
         tags_param = request.query_params.get("tags", "")
-        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
+        sort_order = request.query_params.get("sort", "newest")
 
-        # Step 2: Get tag objects that match the names
+        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
         tag_qs = PodcastTag.objects.filter(name__in=tag_names)
 
-        # Step 3: Filter books with those tags, and published
+        ordering = "-published_date" if sort_order == "newest" else "published_date"
+
         books = (
             Podcast.objects.filter(is_published=True)
             .filter(tags__in=tag_qs)
             .distinct()
-            .order_by('-published_date')
+            .order_by(ordering)
         )
 
-        # Step 4: Paginate and return the result
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(books, request)
         serializer = PodcastListSerializer(page, many=True)
