@@ -193,7 +193,7 @@ class PublishedBlogListAPIView(APIView):
             blogs = blogs.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query) |
-                Q(author__name__icontains=search_query)  # Optional: adjust based on your model
+                Q(author__icontains=search_query)  # Optional: adjust based on your model
             )
 
         # Apply sorting
@@ -233,7 +233,7 @@ class PublishedBlogListAPIViewByTags(APIView):
             blogs = blogs.filter(
                 Q(title__icontains=search_query) |
                 Q(description__icontains=search_query) |
-                Q(author__name__icontains=search_query)
+                Q(author__icontains=search_query)
             )
 
         # Apply sorting
