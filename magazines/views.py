@@ -15,7 +15,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 
 from django.db.models.functions import ExtractYear
-from django.db.models import Count
+from django.db.models import Count, Q
 
 
 # --- TAG Views ---
@@ -119,7 +119,7 @@ class PublicMagazineDetailView(APIView):
 
 class PublicMagazinesByYearView(APIView):
     queryset = Magazine.objects.all().prefetch_related('pages', 'tags')
-    permission_classes = [AllowAny]  # ✅ public
+    permission_classes = [AllowAny]
     authentication_classes = []
 
     def get(self, request, year):
@@ -128,13 +128,25 @@ class PublicMagazinesByYearView(APIView):
         except ValueError:
             return Response({"detail": "Invalid year format."}, status=400)
 
+        # Step 1: Base query
         magazines = Magazine.objects.filter(
             is_published=True,
             published_date__year=year
-        ).order_by('-published_date')
+        )
 
+        # Step 2: Apply search filter (optional)
+        search_query = request.query_params.get("search")
+        if search_query:
+            magazines = magazines.filter(
+                Q(name__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+
+        # Step 3: Order and serialize
+        magazines = magazines.order_by('-published_date')
         serializer = MagazineSerializer(magazines, many=True)
         return Response(serializer.data, status=200)
+
     
 
 class PublicMagazinesForCurrentView(APIView):
