@@ -192,7 +192,7 @@ class PublishedBlogListAPIView(APIView):
         if search_query:
             blogs = blogs.filter(
                 Q(title__icontains=search_query) |
-                Q(summary__icontains=search_query) |
+                Q(description__icontains=search_query) |
                 Q(author__name__icontains=search_query)  # Optional: adjust based on your model
             )
 
@@ -232,7 +232,7 @@ class PublishedBlogListAPIViewByTags(APIView):
         if search_query:
             blogs = blogs.filter(
                 Q(title__icontains=search_query) |
-                Q(summary__icontains=search_query) |
+                Q(description__icontains=search_query) |
                 Q(author__name__icontains=search_query)
             )
 
