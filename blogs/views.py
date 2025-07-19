@@ -18,6 +18,7 @@ from misc.models import BlogNotification
 from django.db import transaction, DatabaseError
 from django.utils import timezone 
 from datetime import date
+from django.db.models import Q
 
 
 class BlogTagListCreateView(APIView):
@@ -172,52 +173,78 @@ class PublishedBlogPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 50
 
+
 class PublishedBlogListAPIView(APIView):
     permission_classes = [AllowAny]
 
     class CustomPagination(PageNumberPagination):
-        page_size = 10  # Default page size
+        page_size = 10
         page_size_query_param = 'page_size'
         max_page_size = 50
 
     def get(self, request):
-        blogs = Blog.objects.filter(is_published=True, is_rejected=False).defer('content').order_by('-created_at')
-        
+        search_query = request.query_params.get("search", "")
+        sort_by = request.query_params.get("sort", "-created_at")
+
+        blogs = Blog.objects.filter(is_published=True, is_rejected=False).defer('content')
+
+        # Apply search
+        if search_query:
+            blogs = blogs.filter(
+                Q(title__icontains=search_query) |
+                Q(summary__icontains=search_query) |
+                Q(author__name__icontains=search_query)  # Optional: adjust based on your model
+            )
+
+        # Apply sorting
+        allowed_sort_fields = ['created_at', 'title', '-created_at', '-title']
+        if sort_by in allowed_sort_fields:
+            blogs = blogs.order_by(sort_by)
+        else:
+            blogs = blogs.order_by('-created_at')  # Default fallback
+
         paginator = self.CustomPagination()
         result_page = paginator.paginate_queryset(blogs, request)
-
         serializer = BlogSerializer(result_page, many=True)
         return paginator.get_paginated_response(serializer.data)
-    
+
 
 class PublishedBlogListAPIViewByTags(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
     class CustomPagination(PageNumberPagination):
-        page_size = 10  # Default page size
+        page_size = 10
         page_size_query_param = 'page_size'
         max_page_size = 50
 
     def get(self, request):
-        # Step 1: Get the 'tags' query parameter (comma-separated)
         tags_param = request.query_params.get("tags", "")
-        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
+        search_query = request.query_params.get("search", "")
+        sort_by = request.query_params.get("sort", "-created_at")
 
-        # Step 2: Get tag objects that match the names
+        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
         tag_qs = BlogTag.objects.filter(name__in=tag_names)
 
-        # Step 3: Filter books with those tags, and published
-        books = (
-            Blog.objects.filter(is_published=True)
-            .filter(tags__in=tag_qs)
-            .distinct()
-            .order_by('-created_at')
-        )
+        blogs = Blog.objects.filter(is_published=True).filter(tags__in=tag_qs).distinct().defer('content')
 
-        # Step 4: Paginate and return the result
+        # Apply search
+        if search_query:
+            blogs = blogs.filter(
+                Q(title__icontains=search_query) |
+                Q(summary__icontains=search_query) |
+                Q(author__name__icontains=search_query)
+            )
+
+        # Apply sorting
+        allowed_sort_fields = ['created_at', 'title', '-created_at', '-title']
+        if sort_by in allowed_sort_fields:
+            blogs = blogs.order_by(sort_by)
+        else:
+            blogs = blogs.order_by('-created_at')
+
         paginator = self.CustomPagination()
-        page = paginator.paginate_queryset(books, request)
+        page = paginator.paginate_queryset(blogs, request)
         serializer = BlogSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
 
