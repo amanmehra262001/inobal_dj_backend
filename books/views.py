@@ -12,6 +12,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 import json
 from django.db import models
+from django.db.models import Q
 
 # Create your views here.
 
@@ -166,11 +167,26 @@ class PublicPublishedBooksAPIView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        books = Book.objects.filter(is_published=True).order_by('-published_date')
+        search_query = request.query_params.get("search", "")
+        sort_order = request.query_params.get("sort", "newest")
+
+        ordering = "-published_date" if sort_order == "newest" else "published_date"
+
+        books = Book.objects.filter(is_published=True)
+
+        if search_query:
+            books = books.filter(
+                Q(title__icontains=search_query) |
+                Q(author_name__icontains=search_query)
+            )
+
+        books = books.order_by(ordering)
+
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(books, request)
         serializer = BookSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
 
 
 class PublicPublishedBooksAPIViewByTags(APIView):
@@ -178,26 +194,30 @@ class PublicPublishedBooksAPIViewByTags(APIView):
     authentication_classes = []
 
     def get(self, request):
-        # Step 1: Get the 'tags' query parameter (comma-separated)
         tags_param = request.query_params.get("tags", "")
-        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
+        search_query = request.query_params.get("search", "")
+        sort_order = request.query_params.get("sort", "newest")
 
-        # Step 2: Get tag objects that match the names
+        tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
         tag_qs = BookTag.objects.filter(name__in=tag_names)
 
-        # Step 3: Filter books with those tags, and published
-        books = (
-            Book.objects.filter(is_published=True)
-            .filter(tags__in=tag_qs)
-            .distinct()
-            .order_by('-published_date')
-        )
+        ordering = "-published_date" if sort_order == "newest" else "published_date"
 
-        # Step 4: Paginate and return the result
+        books = Book.objects.filter(is_published=True, tags__in=tag_qs)
+
+        if search_query:
+            books = books.filter(
+                Q(title__icontains=search_query) |
+                Q(author_name__icontains=search_query)
+            )
+
+        books = books.distinct().order_by(ordering)
+
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(books, request)
         serializer = BookSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
 
 
 class PublicPublishedBookDetailAPIView(APIView):
