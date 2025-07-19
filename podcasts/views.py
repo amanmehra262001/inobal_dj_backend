@@ -9,7 +9,7 @@ from common.constants import S3_PODCASTS_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from rest_framework.pagination import PageNumberPagination
-
+from django.db.models import Q
 
 class PodcastTagListCreateView(APIView):
     authentication_classes = [CustomJWTAuthentication]
@@ -102,16 +102,24 @@ class PublicPublishedPodcastListAPIView(APIView):
     def get(self, request):
         podcast_id = request.query_params.get("id")
         sort_order = request.query_params.get("sort", "newest")
+        search_query = request.query_params.get("search", "")
 
         if podcast_id:
             podcast = generics.get_object_or_404(Podcast, pk=podcast_id, is_published=True)
             serializer = PodcastSerializer(podcast)
             return Response(serializer.data)
 
-        # Determine ordering
         ordering = "-published_date" if sort_order == "newest" else "published_date"
 
-        podcasts = Podcast.objects.filter(is_published=True).defer('transcript').order_by(ordering)
+        podcasts = Podcast.objects.filter(is_published=True).defer('transcript')
+
+        # Apply search
+        if search_query:
+            podcasts = podcasts.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query)
+            )
+
+        podcasts = podcasts.order_by(ordering)
 
         paginator = StandardResultsSetPagination()
         paginated_qs = paginator.paginate_queryset(podcasts, request)
@@ -126,18 +134,22 @@ class PublicPublishedPodcastListAPIViewByTags(APIView):
     def get(self, request):
         tags_param = request.query_params.get("tags", "")
         sort_order = request.query_params.get("sort", "newest")
+        search_query = request.query_params.get("search", "")
 
         tag_names = [tag.strip() for tag in tags_param.split(",") if tag.strip()]
         tag_qs = PodcastTag.objects.filter(name__in=tag_names)
 
         ordering = "-published_date" if sort_order == "newest" else "published_date"
 
-        books = (
-            Podcast.objects.filter(is_published=True)
-            .filter(tags__in=tag_qs)
-            .distinct()
-            .order_by(ordering)
-        )
+        books = Podcast.objects.filter(is_published=True).filter(tags__in=tag_qs).distinct()
+
+        # Apply search
+        if search_query:
+            books = books.filter(
+                Q(title__icontains=search_query) | Q(description__icontains=search_query)
+            )
+
+        books = books.order_by(ordering)
 
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(books, request)
