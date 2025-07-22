@@ -121,9 +121,10 @@ class Activity(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
     description = models.TextField()
+    short_description = models.CharField(max_length=255, blank=True)  # New field
 
     def __str__(self):
-        return f"{self.description[:50]} ({self.start_time} - {self.end_time})"
+        return f"{self.short_description or self.description[:50]} ({self.start_time} - {self.end_time})"
 
 
 class EventForm(models.Model):
