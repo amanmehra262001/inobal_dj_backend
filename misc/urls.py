@@ -32,4 +32,5 @@ urlpatterns = [
     # Partners
     path('partners/', PartnersListCreateView.as_view(), name='partners-list-create'),
     path('partners/<int:pk>/', PartnerDetailView.as_view(), name='partner-detail'),
+    path('partners/images/', S3ImageManager.as_view(), name='ads-image-manager'),
 ]
