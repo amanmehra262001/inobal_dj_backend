@@ -142,3 +142,19 @@ class EventForm(models.Model):
 
     def __str__(self):
         return f"{self.full_name} - {self.event.title}"
+
+
+class Partners(models.Model):
+    name = models.CharField(max_length=255)
+    short_head = models.TextField(max_length=300)
+
+    short_description = models.TextField(max_length=300)
+    long_description = models.TextField()
+
+    logo_image_url = models.URLField(null=True, blank=True)
+    logo_image_key = models.CharField(max_length=255, null=True, blank=True)
+
+    banner_image_url = models.URLField(null=True, blank=True)
+    banner_image_key = models.CharField(max_length=255, null=True, blank=True)
+
+    partner_website_link = models.URLField()

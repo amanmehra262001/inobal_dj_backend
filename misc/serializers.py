@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm
+from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners
 
 class CareerSerializer(serializers.ModelSerializer):
     work_mode_display = serializers.SerializerMethodField()
@@ -88,3 +88,20 @@ class EventFormSerializer(serializers.ModelSerializer):
         model = EventForm
         fields = '__all__'
         read_only_fields = ['submitted_at']
+
+
+class PartnersSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Partners
+        fields = [
+            'id',
+            'name',
+            'short_head',
+            'short_description',
+            'long_description',
+            'logo_image_url',
+            'logo_image_key',
+            'banner_image_url',
+            'banner_image_key',
+            'partner_website_link',
+        ]

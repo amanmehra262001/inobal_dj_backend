@@ -1,8 +1,8 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Career, Advertisement, Event, Activity, EventForm
-from .serializers import CareerSerializer, BlogNotification, BlogNotificationSerializer, AdvertisementSerializer, EventFormSerializer, ActivitySerializer, EventSerializer
+from .models import Career, Advertisement, Event, Activity, EventForm, Partners
+from .serializers import CareerSerializer, BlogNotification, BlogNotificationSerializer, AdvertisementSerializer, EventFormSerializer, ActivitySerializer, EventSerializer, PartnersSerializer
 from django.shortcuts import get_object_or_404
 from common.views import CustomJWTAuthentication, IsAdminUser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -380,3 +380,43 @@ class S3ImageManager(APIView):
         if response['error']:
             print('Response error message:', response['message'])
             return Response({'message':response['message']}, status=400)
+        
+
+class PartnersListCreateView(APIView):
+    def get(self, request):
+        partners = Partners.objects.all()
+        serializer = PartnersSerializer(partners, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        serializer = PartnersSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PartnerDetailView(APIView):
+    def get(self, request, pk):
+        partner = get_object_or_404(Partners, pk=pk)
+        serializer = PartnersSerializer(partner)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def put(self, request, pk):
+        partner = get_object_or_404(Partners, pk=pk)
+        serializer = PartnersSerializer(partner, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        partner = get_object_or_404(Partners, pk=pk)
+        partner.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

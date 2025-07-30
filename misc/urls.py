@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import CareerListCreateAPIView, CareerDetailAPIView, PublishedCareerListCreateAPIView, BlogNotificationListAPIView, AdvertisementPublicView, AdvertisementAdminView, S3ImageManager, EventDetailView, EventDetailAdminView, ActivityAdminView, EventFormCreateView, EventFormListAdminView, S3DocumentManager, EventCreateAdminView
+from .views import CareerListCreateAPIView, CareerDetailAPIView, PublishedCareerListCreateAPIView, BlogNotificationListAPIView, AdvertisementPublicView, AdvertisementAdminView, S3ImageManager, EventDetailView, EventDetailAdminView, ActivityAdminView, EventFormCreateView, EventFormListAdminView, S3DocumentManager, EventCreateAdminView, PartnersListCreateView, PartnerDetailView
 
 urlpatterns = [
     path('careers/', CareerListCreateAPIView.as_view(), name='career-list-create'),
@@ -28,4 +28,8 @@ urlpatterns = [
 
     # EventForm view (admin only)
     path('eventforms/all/<slug:slug>/', EventFormListAdminView.as_view(), name='eventform-list'),
+
+    # Partners
+    path('partners/', PartnersListCreateView.as_view(), name='partners-list-create'),
+    path('partners/<int:pk>/', PartnerDetailView.as_view(), name='partner-detail'),
 ]
