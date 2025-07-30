@@ -383,13 +383,21 @@ class S3ImageManager(APIView):
         
 
 class PartnersListCreateView(APIView):
+
+    def get_authenticators(self):
+        if self.request.method == 'GET':
+            return []  # No authentication for GET
+        return [CustomJWTAuthentication()]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAdminUser()]
+
     def get(self, request):
         partners = Partners.objects.all()
         serializer = PartnersSerializer(partners, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAdminUser]
 
     def post(self, request):
         serializer = PartnersSerializer(data=request.data)
@@ -400,20 +408,28 @@ class PartnersListCreateView(APIView):
 
 
 class PartnerDetailView(APIView):
+
+    def get_authenticators(self):
+        if self.request.method == 'GET':
+            return []  # Public access
+        return [CustomJWTAuthentication()]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAdminUser()]
+
     def get(self, request, pk):
         partner = get_object_or_404(Partners, pk=pk)
         serializer = PartnersSerializer(partner)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    authentication_classes = [CustomJWTAuthentication]
-    permission_classes = [IsAdminUser]
 
     def put(self, request, pk):
         partner = get_object_or_404(Partners, pk=pk)
         serializer = PartnersSerializer(partner, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, pk):
