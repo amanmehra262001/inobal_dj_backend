@@ -109,6 +109,7 @@ class PartnersSerializer(serializers.ModelSerializer):
             'logo_image_url',
             'logo_image_key',
             'partner_website_link',
+            'awards',
             'banner_images',
         ]
 
