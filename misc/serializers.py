@@ -1,5 +1,7 @@
 from rest_framework import serializers
 from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners, PartnerBannerImage
+import json
+from rest_framework.utils import model_meta
 
 class CareerSerializer(serializers.ModelSerializer):
     work_mode_display = serializers.SerializerMethodField()
@@ -11,7 +13,6 @@ class CareerSerializer(serializers.ModelSerializer):
 
     def get_work_mode_display(self, obj):
         return obj.get_work_mode_display()
-
 
 
 class BlogNotificationSerializer(serializers.ModelSerializer):
@@ -113,6 +114,50 @@ class PartnersSerializer(serializers.ModelSerializer):
             'banner_images',
         ]
 
+    from collections import OrderedDict
+
+class PartnersSerializer(serializers.ModelSerializer):
+    banner_images = PartnerBannerImageSerializer(many=True, required=False)
+
+    class Meta:
+        model = Partners
+        fields = [
+            'id',
+            'name',
+            'short_head',
+            'short_description',
+            'long_description',
+            'logo_image_url',
+            'logo_image_key',
+            'partner_website_link',
+            'awards',
+            'banner_images',
+        ]
+
+    def to_internal_value(self, data):
+        data = data.copy()
+
+        if isinstance(data.get("banner_images"), str):
+            try:
+                data["banner_images"] = json.loads(data["banner_images"])
+            except json.JSONDecodeError:
+                raise serializers.ValidationError({"banner_images": "Invalid JSON format."})
+
+        # ✅ Convert to internal values using default method
+        internal = super().to_internal_value(data)
+
+        # ✅ Manually validate nested banner_images, if present
+        banner_images_data = data.get("banner_images")
+        if banner_images_data is not None:
+            banner_images_serializer = PartnerBannerImageSerializer(
+                data=banner_images_data, many=True
+            )
+            banner_images_serializer.is_valid(raise_exception=True)
+            internal["banner_images"] = banner_images_serializer.validated_data
+
+        return internal
+
+
     def create(self, validated_data):
         banner_images_data = validated_data.pop('banner_images', [])
         partner = Partners.objects.create(**validated_data)
@@ -133,4 +178,5 @@ class PartnersSerializer(serializers.ModelSerializer):
             for img_data in banner_images_data:
                 PartnerBannerImage.objects.create(partner=instance, **img_data)
 
+                all_images = PartnerBannerImage.objects.filter(partner=instance)
         return instance
