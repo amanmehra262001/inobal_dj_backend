@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners
+from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners, PartnerBannerImage
 
 class CareerSerializer(serializers.ModelSerializer):
     work_mode_display = serializers.SerializerMethodField()
@@ -90,7 +90,14 @@ class EventFormSerializer(serializers.ModelSerializer):
         read_only_fields = ['submitted_at']
 
 
+class PartnerBannerImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PartnerBannerImage
+        fields = ['id', 'image_url', 'image_key']
+
 class PartnersSerializer(serializers.ModelSerializer):
+    banner_images = PartnerBannerImageSerializer(many=True, required=False)
+
     class Meta:
         model = Partners
         fields = [
@@ -101,7 +108,28 @@ class PartnersSerializer(serializers.ModelSerializer):
             'long_description',
             'logo_image_url',
             'logo_image_key',
-            'banner_image_url',
-            'banner_image_key',
             'partner_website_link',
+            'banner_images',
         ]
+
+    def create(self, validated_data):
+        banner_images_data = validated_data.pop('banner_images', [])
+        partner = Partners.objects.create(**validated_data)
+        for img_data in banner_images_data:
+            PartnerBannerImage.objects.create(partner=partner, **img_data)
+        return partner
+
+    def update(self, instance, validated_data):
+        banner_images_data = validated_data.pop('banner_images', None)
+
+        # Update basic fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if banner_images_data is not None:
+            instance.banner_images.all().delete()  # Optional: remove old ones
+            for img_data in banner_images_data:
+                PartnerBannerImage.objects.create(partner=instance, **img_data)
+
+        return instance

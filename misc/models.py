@@ -154,7 +154,19 @@ class Partners(models.Model):
     logo_image_url = models.URLField(null=True, blank=True)
     logo_image_key = models.CharField(max_length=255, null=True, blank=True)
 
-    banner_image_url = models.URLField(null=True, blank=True)
-    banner_image_key = models.CharField(max_length=255, null=True, blank=True)
-
     partner_website_link = models.URLField()
+
+    # ✅ New awards field (array of awards)
+    awards = models.JSONField(default=list, blank=True)  # stores list of strings
+
+    def __str__(self):
+        return self.name
+
+# ✅ New model for multiple banner images
+class PartnerBannerImage(models.Model):
+    partner = models.ForeignKey(Partners, related_name='banner_images', on_delete=models.CASCADE)
+    image_url = models.URLField()
+    image_key = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.partner.name} - Banner Image"
