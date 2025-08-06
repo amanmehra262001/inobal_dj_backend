@@ -156,13 +156,10 @@ class Partners(models.Model):
 
     partner_website_link = models.URLField()
 
-    # ✅ New awards field (array of awards)
-    awards = models.JSONField(default=list, blank=True)  # stores list of strings
-
     def __str__(self):
         return self.name
 
-# ✅ New model for multiple banner images
+
 class PartnerBannerImage(models.Model):
     partner = models.ForeignKey(Partners, related_name='banner_images', on_delete=models.CASCADE)
     image_url = models.URLField()
@@ -170,3 +167,13 @@ class PartnerBannerImage(models.Model):
 
     def __str__(self):
         return f"{self.partner.name} - Banner Image"
+
+
+# ✅ New model for awards
+class PartnerAward(models.Model):
+    partner = models.ForeignKey(Partners, related_name='awards', on_delete=models.CASCADE)
+    title = models.CharField(max_length=255)
+    award_url = models.URLField()
+
+    def __str__(self):
+        return f"{self.partner.name} - {self.title}"
