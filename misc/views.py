@@ -421,8 +421,19 @@ class PartnerDetailView(APIView):
 
     def get(self, request, pk):
         partner = get_object_or_404(Partners, pk=pk)
+        # Find previous partner (smallest id less than current)
+        prev_partner = Partners.objects.filter(id__lt=partner.id).order_by('-id').first()
+        # Find next partner (smallest id greater than current)
+        next_partner = Partners.objects.filter(id__gt=partner.id).order_by('id').first()
+
         serializer = PartnersSerializer(partner)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
+        # Add prev and next partner IDs to response
+        data = serializer.data
+        data['prev_partner_id'] = prev_partner.id if prev_partner else None
+        data['next_partner_id'] = next_partner.id if next_partner else None
+
+        return Response(data, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
         partner = get_object_or_404(Partners, pk=pk)
