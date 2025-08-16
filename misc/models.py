@@ -89,7 +89,7 @@ class Event(models.Model):
     event_date = models.DateField()
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
-    timezone = models.CharField(max_length=50, default='UTC')
+    timezone = models.CharField(max_length=50, default='UTC', null=True, blank=True)
     location = models.CharField(max_length=255, null=True, blank=True)
     event_type = models.CharField(max_length=255, null=True, blank=True)
 
