@@ -47,6 +47,7 @@ class ActivitySerializer(serializers.ModelSerializer):
 
 class EventSerializer(serializers.ModelSerializer):
     activities = ActivitySerializer(many=True, required=False)
+    timezone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     class Meta:
         model = Event
