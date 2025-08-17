@@ -10,10 +10,16 @@ class CustomJWTAuthentication(JWTAuthentication):
             user_id = validated_token.get("user_id")
             auth_type = validated_token.get("auth_type")
 
+            if not user_id or not isinstance(user_id, int):
+                raise exceptions.AuthenticationFailed("Invalid user ID in token")
+            
             if user_id is None:
                 raise exceptions.AuthenticationFailed("Token contained no recognizable user identification")
 
             user = UserAuth.objects.get(id=user_id)
+            if not user.is_active:
+                raise exceptions.AuthenticationFailed("User account is inactive")
+
             user.auth_type_from_token = auth_type
 
             # Ensure flags are synced

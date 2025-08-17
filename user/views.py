@@ -2,6 +2,7 @@ from django.shortcuts import render
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.http import JsonResponse
+from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 import requests
 from rest_framework import status
@@ -37,7 +38,10 @@ class GoogleSigninView(APIView):
             # Fetch user info from Google using access token
             user_info_url = "https://www.googleapis.com/oauth2/v2/userinfo"
             headers = {"Authorization": f"Bearer {token}"}
-            response = requests.get(user_info_url, headers=headers)
+            try:
+                response = requests.get(user_info_url, headers=headers, timeout=10)
+            except requests.exceptions.RequestException as e:
+                return Response({"error": "Failed to connect to Google"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
             if response.status_code != 200:
                 return Response({"error": "Failed to fetch user info from Google"}, status=status.HTTP_400_BAD_REQUEST)
@@ -70,6 +74,7 @@ class GoogleSigninView(APIView):
             traceback.print_exc()
             return Response({"error": "Something went wrong"}, status=status.HTTP_400_BAD_REQUEST)
 
+    @transaction.atomic
     def create_or_get_user(self, user_info):
         user_email = user_info.get('email', '')
         try:
@@ -267,55 +272,79 @@ class AuthenticatedUserView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        
-        print('user:', user)
-        name = None
-        image_url = None
-        image_key = None
-        occupation = None
-        bio = None
-        auth_type = None
 
-        if user.is_staff:
-            admin_profile = AdminProfile.objects.get(user=user)
-            name = admin_profile.full_name
-            auth_type = AUTH_TYPE_ADMIN
-
-        elif user.is_subscriber:
-            subscriber_profile = SubscriberProfile.objects.get(user=user)
-            name = subscriber_profile.full_name
-
-        else:
-            try:
-                user_profile = UserProfile.objects.get(user=user)
-                name = user_profile.name
-                image_url = user_profile.image_url
-                image_key = user_profile.image_key
-
-                occupation = user_profile.occupation
-                bio = user_profile.bio
-                auth_type = AUTH_TYPE_USER
-
-            except Exception as e:
-                print('Error fetching user profile:', e)
-                return JsonResponse({
-                    "user_id": user.id,
-                    "message": "User Profile incomplete"
-                }, status=status.HTTP_400_BAD_REQUEST)
-
-        # You can use the token claim 'auth_type' if needed
-        return Response({
+        # --- Default response values ---
+        response_data = {
             "user_id": user.id,
             "email": getattr(user, "email", ""),
-            "name": name or "",
             "unique_id": getattr(user, "unique_id", ""),
-            "auth_type": auth_type,
-            "image_key": image_key or "",
-            "image_url": image_url or "",
-            "occupation": occupation or "",
-            "bio": bio or "",
+            "auth_type": None,
+            "name": "",
+            "image_key": "",
+            "image_url": "",
+            "occupation": "",
+            "bio": "",
+            "subscription_start": None,
+            "subscription_end": None,
+            "subscription_plan": None,
             "message": "Authenticated user info fetched successfully"
-        }, status=status.HTTP_200_OK)
+        }
+
+        # --- Admin case ---
+        if user.is_staff:
+            admin_profile = AdminProfile.objects.filter(user=user).first()
+            if not admin_profile:
+                return Response({"error": "Admin profile not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+            response_data.update({
+                "name": admin_profile.full_name,
+                "auth_type": AUTH_TYPE_ADMIN
+            })
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        # --- Non-admin (User / Subscriber / Both) ---
+        user_profile = UserProfile.objects.filter(user=user).first()
+        subscriber_profile = SubscriberProfile.objects.filter(user=user).first()
+
+        has_user_profile = bool(user_profile)
+        has_subscriber_profile = bool(subscriber_profile)
+
+        if not has_user_profile and not has_subscriber_profile:
+            return Response({
+                "error": "No profile (User or Subscriber) found for this account"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fill UserProfile data if exists
+        if user_profile:
+            response_data.update({
+                "name": user_profile.name,
+                "image_url": user_profile.image_url or "",
+                "image_key": user_profile.image_key or "",
+                "occupation": user_profile.occupation or "",
+                "bio": user_profile.bio or "",
+            })
+
+        # Fill SubscriberProfile data if exists
+        if subscriber_profile:
+            # Prefer subscriber full_name if no user profile exists
+            if not user_profile:
+                response_data["name"] = subscriber_profile.full_name
+
+            response_data.update({
+                "subscription_start": subscriber_profile.subscription_start,
+                "subscription_end": subscriber_profile.subscription_end,
+                "subscription_plan": subscriber_profile.subscription_plan,
+            })
+
+        # Decide auth_type
+        if has_user_profile and has_subscriber_profile:
+            response_data["auth_type"] = AUTH_TYPE_SUBSCRIBER
+        elif has_subscriber_profile:
+            response_data["auth_type"] = AUTH_TYPE_SUBSCRIBER
+        elif has_user_profile:
+            response_data["auth_type"] = AUTH_TYPE_USER
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 
 class UserProfileView(APIView):

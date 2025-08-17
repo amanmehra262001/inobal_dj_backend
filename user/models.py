@@ -104,6 +104,7 @@ class SubscriberProfile(models.Model):
     full_name = models.CharField(max_length=255)
     subscription_plan = models.CharField(max_length=100, blank=True, null=True)
     subscription_start = models.DateField(auto_now_add=True)
+    subscription_end = models.DateField(blank=True, null=True)
     active = models.BooleanField(default=True)
 
     class Meta:
