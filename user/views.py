@@ -437,6 +437,11 @@ class GetAllUsersView(APIView):
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
 
+    class CustomPagination(PageNumberPagination):
+        page_size = 20
+        page_size_query_param = 'page_size'
+        max_page_size = 100
+
     def get(self, request, *args, **kwargs):
         # Check if the authenticated user is an admin
         if not request.user.is_staff:
@@ -446,46 +451,12 @@ class GetAllUsersView(APIView):
             )
 
         try:
-            # Get pagination parameters from query params
-            page = request.query_params.get('page', 1)
-            page_size = request.query_params.get('page_size', 20)  # Default 20 users per page
-            
-            # Validate page_size (max 100 to prevent performance issues)
-            try:
-                page_size = int(page_size)
-                if page_size > 100:
-                    page_size = 100
-                elif page_size < 1:
-                    page_size = 20
-            except ValueError:
-                page_size = 20
-            
-            # Validate page number
-            try:
-                page = int(page)
-                if page < 1:
-                    page = 1
-            except ValueError:
-                page = 1
-
             # Get all users from UserAuth
             users_queryset = UserAuth.objects.all().order_by('-date_joined')
             
-            # Create paginator
-            paginator = Paginator(users_queryset, page_size)
-            
-            try:
-                users_page = paginator.page(page)
-            except PageNotAnInteger:
-                # If page is not an integer, deliver first page
-                users_page = paginator.page(1)
-            except EmptyPage:
-                # If page is out of range, deliver last page
-                users_page = paginator.page(paginator.num_pages)
-            
             users_data = []
             
-            for user in users_page:
+            for user in users_queryset:
                 user_data = {
                     "user_id": user.id,
                     "email": user.email,
@@ -547,25 +518,11 @@ class GetAllUsersView(APIView):
                 
                 users_data.append(user_data)
             
-            # Prepare pagination metadata
-            pagination_info = {
-                "current_page": users_page.number,
-                "total_pages": paginator.num_pages,
-                "page_size": page_size,
-                "total_users": paginator.count,
-                "has_next": users_page.has_next(),
-                "has_previous": users_page.has_previous(),
-                "next_page": users_page.next_page_number() if users_page.has_next() else None,
-                "previous_page": users_page.previous_page_number() if users_page.has_previous() else None,
-                "start_index": users_page.start_index(),
-                "end_index": users_page.end_index()
-            }
+            # Use custom pagination
+            paginator = self.CustomPagination()
+            result_page = paginator.paginate_queryset(users_data, request)
             
-            return Response({
-                "pagination": pagination_info,
-                "users": users_data,
-                "message": f"Users retrieved successfully (Page {page} of {paginator.num_pages})"
-            }, status=status.HTTP_200_OK)
+            return paginator.get_paginated_response(result_page)
             
         except Exception as e:
             print('Error fetching all users:', e)
