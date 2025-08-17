@@ -16,7 +16,7 @@ from django.contrib.auth.hashers import check_password
 from user.tokens import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from common.views import CustomJWTAuthentication
+from common.views import CustomJWTAuthentication, IsAdminUser
 from user.serializers import UserProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
@@ -429,3 +429,96 @@ class S3UserImageManager(APIView):
             return Response({'message': response['message']}, status=200)
 
         return Response({'message': response['message']}, status=400)
+
+
+class GetAllUsersView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def get(self, request, *args, **kwargs):
+        # Check if the authenticated user is an admin
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Access denied. Admin privileges required."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Get all users from UserAuth
+            users = UserAuth.objects.all().order_by('-date_joined')
+            
+            users_data = []
+            
+            for user in users:
+                user_data = {
+                    "user_id": user.id,
+                    "email": user.email,
+                    "unique_id": user.unique_id,
+                    "is_staff": user.is_staff,
+                    "is_subscriber": user.is_subscriber,
+                    "is_active": user.is_active,
+                    "is_verified": user.is_verified,
+                    "is_superuser": user.is_superuser,
+                    "auth_type": user.auth_type,
+                    "date_joined": user.date_joined,
+                    "last_login": user.last_login,
+                    "profiles": {}
+                }
+                
+                # Get UserProfile if exists
+                try:
+                    user_profile = UserProfile.objects.get(user=user)
+                    user_data["profiles"]["user_profile"] = {
+                        "name": user_profile.name,
+                        "image_url": user_profile.image_url,
+                        "image_key": user_profile.image_key,
+                        "occupation": user_profile.occupation,
+                        "bio": user_profile.bio
+                    }
+                except UserProfile.DoesNotExist:
+                    user_data["profiles"]["user_profile"] = None
+                
+                # Get SubscriberProfile if exists
+                try:
+                    subscriber_profile = SubscriberProfile.objects.get(user=user)
+                    user_data["profiles"]["subscriber_profile"] = {
+                        "full_name": subscriber_profile.full_name,
+                        "subscription_plan": subscriber_profile.subscription_plan,
+                        "subscription_start": subscriber_profile.subscription_start,
+                        "active": subscriber_profile.active
+                    }
+                except SubscriberProfile.DoesNotExist:
+                    user_data["profiles"]["subscriber_profile"] = None
+                
+                # Get AdminProfile if exists
+                try:
+                    admin_profile = AdminProfile.objects.get(user=user)
+                    user_data["profiles"]["admin_profile"] = {
+                        "full_name": admin_profile.full_name,
+                        "joined_on": admin_profile.joined_on,
+                        "active": admin_profile.active
+                    }
+                except AdminProfile.DoesNotExist:
+                    user_data["profiles"]["admin_profile"] = None
+                
+                # Determine the primary profile type
+                if user.is_staff:
+                    user_data["primary_profile"] = "admin"
+                elif user.is_subscriber:
+                    user_data["primary_profile"] = "subscriber"
+                else:
+                    user_data["primary_profile"] = "user"
+                
+                users_data.append(user_data)
+            
+            return Response({
+                "total_users": len(users_data),
+                "users": users_data,
+                "message": "All users retrieved successfully"
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            print('Error fetching all users:', e)
+            return Response({
+                "error": "Failed to retrieve users"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
