@@ -43,6 +43,7 @@ class UserAuth(AbstractBaseUser):
     date_joined = models.DateTimeField(auto_now_add=True)
     is_superuser = models.BooleanField(default=False)
     is_staff = models.BooleanField(default=False)
+    is_subscriber = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     password = models.CharField(max_length=128, blank=True, null=True)
     last_login = models.DateTimeField(blank=True, null=True)
@@ -96,3 +97,17 @@ class AdminProfile(models.Model):
 
     def __str__(self):
         return f"{self.full_name}"
+
+
+class SubscriberProfile(models.Model):
+    user = models.OneToOneField(UserAuth, on_delete=models.CASCADE, related_name='subscriber_profile')
+    full_name = models.CharField(max_length=255)
+    subscription_plan = models.CharField(max_length=100, blank=True, null=True)
+    subscription_start = models.DateField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'subscriber_profile'
+
+    def __str__(self):
+        return f"Subscriber: {self.full_name}"

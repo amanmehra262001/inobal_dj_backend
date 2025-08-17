@@ -6,9 +6,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 import requests
 from rest_framework import status
 import traceback
-from user.models import UserAuth, AdminProfile, UserProfile
+from user.models import UserAuth, AdminProfile, UserProfile, SubscriberProfile
 import uuid
-from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL, AUTH_TYPE_ADMIN, AUTH_TYPE_USER
+from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL, AUTH_TYPE_ADMIN, AUTH_TYPE_USER, AUTH_TYPE_SUBSCRIBER
 from django.contrib.auth import authenticate
 from django.contrib.auth.backends import BaseBackend
 from django.contrib.auth.hashers import check_password
@@ -108,8 +108,10 @@ class EmailPasswordSignupView(APIView):
         # Get the email and password from the request data
         email = request.data.get('email')
         password = request.data.get('password')
+        is_subscriber = request.data.get('is_subscriber')
         print('email:', email)
         print('password:', password)
+        print('is_subscriber:', is_subscriber)
 
         if not email or not password:
             return Response({"error": "Email and password are required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -127,7 +129,8 @@ class EmailPasswordSignupView(APIView):
                 email=email,
                 password=password,
                 auth_type=AUTH_TYPE_EMAIL,
-                unique_id=unique_id  # Ensure to pass the unique_id
+                unique_id=unique_id,  # Ensure to pass the unique_id
+                is_subscriber=True if is_subscriber else False
             )
 
             # Generate JWT tokens for the user
@@ -189,6 +192,9 @@ class EmailPasswordLoginView(APIView):
         # Generate JWT tokens for the authenticated user
         refresh = RefreshToken.for_user(user)
         refresh['auth_type'] = AUTH_TYPE_USER
+
+        if user.is_subscriber:
+            refresh['auth_type'] = AUTH_TYPE_SUBSCRIBER
         
         # Send back the response with user details and JWT tokens
         user_details = {
@@ -261,20 +267,25 @@ class AuthenticatedUserView(APIView):
 
     def get(self, request, *args, **kwargs):
         user = request.user
-        auth_type = getattr(user, "auth_type", AUTH_TYPE_ADMIN if user.is_staff else AUTH_TYPE_USER)
         
-        print('user:', user, auth_type)
+        print('user:', user)
         name = None
         image_url = None
         image_key = None
         occupation = None
         bio = None
-        
-        if auth_type == AUTH_TYPE_ADMIN:
+        auth_type = None
+
+        if user.is_staff:
             admin_profile = AdminProfile.objects.get(user=user)
             name = admin_profile.full_name
-        
-        if (auth_type == AUTH_TYPE_USER) or (auth_type == AUTH_TYPE_EMAIL) or (auth_type == AUTH_TYPE_GOOGLE):
+            auth_type = AUTH_TYPE_ADMIN
+
+        elif user.is_subscriber:
+            subscriber_profile = SubscriberProfile.objects.get(user=user)
+            name = subscriber_profile.full_name
+
+        else:
             try:
                 user_profile = UserProfile.objects.get(user=user)
                 name = user_profile.name
@@ -283,6 +294,7 @@ class AuthenticatedUserView(APIView):
 
                 occupation = user_profile.occupation
                 bio = user_profile.bio
+                auth_type = AUTH_TYPE_USER
 
             except Exception as e:
                 print('Error fetching user profile:', e)
