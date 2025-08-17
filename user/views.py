@@ -451,6 +451,284 @@ class GetAllUsersView(APIView):
             )
 
         try:
+            # Check if user_id is provided for single user lookup
+            user_id = request.query_params.get('user_id')
+            
+            if user_id:
+                # Get single user details
+                return self.get_single_user(user_id)
+            else:
+                # Get all users with pagination
+                return self.get_all_users(request)
+
+        except Exception as e:
+            print('Error in GetAllUsersView:', e)
+            return Response({
+                "error": "Failed to retrieve user(s)"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def post(self, request, *args, **kwargs):
+        """Create a new user"""
+        # Check if the authenticated user is an admin
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Access denied. Admin privileges required."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Extract user data from request
+            email = request.data.get('email')
+            password = request.data.get('password')
+            unique_id = request.data.get('unique_id')
+            is_subscriber = request.data.get('is_subscriber', False)
+            auth_type = request.data.get('auth_type', AUTH_TYPE_EMAIL)
+            subscription_plan = request.data.get('subscription_plan', 'Basic')
+            subscription_end = request.data.get('subscription_end', None)
+            subscription_start = request.data.get('subscription_start', None)
+            occupation = request.data.get('occupation', '')
+            bio = request.data.get('bio', '')
+            subscriber_name = request.data.get('subscriber_name', email.split('@')[0])
+            user_name = request.data.get('user_name', email.split('@')[0])
+
+            # Validate required fields
+            if not email or not password:
+                return Response({
+                    "error": "Email and password are required"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if email already exists
+            if UserAuth.objects.filter(email=email).exists():
+                return Response({
+                    "error": "Email is already taken"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Generate unique_id if not provided
+            if not unique_id:
+                unique_id = f"email_{uuid.uuid4().hex[:8]}"
+
+            # Create the user
+            user = UserAuth.objects.create_user(
+                email=email,
+                password=password,
+                unique_id=unique_id,
+                auth_type=auth_type,
+                is_subscriber=is_subscriber,
+            )
+
+            # Create profile based on user type
+            if is_subscriber:
+                SubscriberProfile.objects.create(
+                    user=user,
+                    full_name=subscriber_name,
+                    subscription_plan=subscription_plan,
+                    subscription_start=subscription_start,
+                    subscription_end=subscription_end
+                )
+            else:
+                UserProfile.objects.create(
+                    user=user,
+                    name=user_name,
+                    occupation=occupation,
+                    bio=bio
+                )
+
+            return Response({
+                "message": "User created successfully",
+                "user_id": user.id,
+                "email": user.email,
+                "unique_id": user.unique_id
+            }, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            print('Error creating user:', e)
+            return Response({
+                "error": "Failed to create user"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, *args, **kwargs):
+        """Update an existing user"""
+        # Check if the authenticated user is an admin
+        if not request.user.is_staff:
+            return Response(
+                {"error": "Access denied. Admin privileges required."}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Get user_id from query params
+            user_id = request.query_params.get('user_id')
+            if not user_id:
+                return Response({
+                    "error": "user_id is required for updating a user"
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Find the user
+            try:
+                user = UserAuth.objects.get(id=user_id)
+            except UserAuth.DoesNotExist:
+                try:
+                    user = UserAuth.objects.get(unique_id=user_id)
+                except UserAuth.DoesNotExist:
+                    return Response({
+                        "error": f"User with ID or unique_id '{user_id}' not found"
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            # Update basic user fields
+            if 'email' in request.data and request.data['email'] != user.email:
+                # Check if new email is already taken
+                if UserAuth.objects.filter(email=request.data['email']).exclude(id=user.id).exists():
+                    return Response({
+                        "error": "Email is already taken by another user"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                user.email = request.data['email']
+
+            if 'unique_id' in request.data and request.data['unique_id'] != user.unique_id:
+                # Check if new unique_id is already taken
+                if UserAuth.objects.filter(unique_id=request.data['unique_id']).exclude(id=user.id).exists():
+                    return Response({
+                        "error": "Unique ID is already taken by another user"
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                user.unique_id = request.data['unique_id']
+
+            if 'is_subscriber' in request.data:
+                user.is_subscriber = request.data['is_subscriber']
+            if 'is_active' in request.data:
+                user.is_active = request.data['is_active']
+            if 'is_verified' in request.data:
+                user.is_verified = request.data['is_verified']
+            if 'auth_type' in request.data:
+                user.auth_type = request.data['auth_type']
+
+            # Update password if provided
+            if 'password' in request.data and request.data['password']:
+                user.set_password(request.data['password'])
+
+            user.save()
+
+            # Update or create profiles based on user type
+            if user.is_subscriber:
+                subscriber_profile, created = SubscriberProfile.objects.get_or_create(user=user)
+                if 'subscriber_name' in request.data:
+                    subscriber_profile.full_name = request.data['subscriber_name']
+                if 'subscription_plan' in request.data:
+                    subscriber_profile.subscription_plan = request.data['subscription_plan']
+                if 'subscription_start' in request.data:
+                    subscriber_profile.subscription_start = request.data['subscription_start']
+                if 'subscription_end' in request.data:
+                    subscriber_profile.subscription_end = request.data['subscription_end']
+                subscriber_profile.save()
+            else:
+                user_profile, created = UserProfile.objects.get_or_create(user=user)
+                if 'user_name' in request.data:
+                    user_profile.name = request.data['user_name']
+                if 'occupation' in request.data:
+                    user_profile.occupation = request.data['occupation']
+                if 'bio' in request.data:
+                    user_profile.bio = request.data['bio']
+                user_profile.save()
+
+            return Response({
+                "message": "User updated successfully",
+                "user_id": user.id,
+                "email": user.email,
+                "unique_id": user.unique_id
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print('Error updating user:', e)
+            return Response({
+                "error": "Failed to update user"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get_single_user(self, user_id):
+        """Get detailed information for a single user"""
+        try:
+            # Try to get user by ID first
+            try:
+                user = UserAuth.objects.get(id=user_id)
+            except UserAuth.DoesNotExist:
+                # Try to get user by unique_id if ID doesn't work
+                try:
+                    user = UserAuth.objects.get(unique_id=user_id)
+                except UserAuth.DoesNotExist:
+                    return Response({
+                        "error": f"User with ID or unique_id '{user_id}' not found"
+                    }, status=status.HTTP_404_NOT_FOUND)
+
+            user_data = {
+                "user_id": user.id,
+                "email": user.email,
+                "unique_id": user.unique_id,
+                "is_staff": user.is_staff,
+                "is_subscriber": user.is_subscriber,
+                "is_active": user.is_active,
+                "is_verified": user.is_verified,
+                "is_superuser": user.is_superuser,
+                "auth_type": user.auth_type,
+                "date_joined": user.date_joined,
+                "last_login": user.last_login,
+                "profiles": {}
+            }
+            
+            # Get UserProfile if exists
+            try:
+                user_profile = UserProfile.objects.get(user=user)
+                user_data["profiles"]["user_profile"] = {
+                    "name": user_profile.name,
+                    "image_url": user_profile.image_url,
+                    "image_key": user_profile.image_key,
+                    "occupation": user_profile.occupation,
+                    "bio": user_profile.bio
+                }
+            except UserProfile.DoesNotExist:
+                user_data["profiles"]["user_profile"] = None
+            
+            # Get SubscriberProfile if exists
+            try:
+                subscriber_profile = SubscriberProfile.objects.get(user=user)
+                user_data["profiles"]["subscriber_profile"] = {
+                    "full_name": subscriber_profile.full_name,
+                    "subscription_plan": subscriber_profile.subscription_plan,
+                    "subscription_start": subscriber_profile.subscription_start,
+                    "active": subscriber_profile.active
+                }
+            except SubscriberProfile.DoesNotExist:
+                user_data["profiles"]["subscriber_profile"] = None
+            
+            # Get AdminProfile if exists
+            try:
+                admin_profile = AdminProfile.objects.get(user=user)
+                user_data["profiles"]["admin_profile"] = {
+                    "full_name": admin_profile.full_name,
+                    "joined_on": admin_profile.joined_on,
+                    "active": admin_profile.active
+                }
+            except AdminProfile.DoesNotExist:
+                user_data["profiles"]["admin_profile"] = None
+            
+            # Determine the primary profile type
+            if user.is_staff:
+                user_data["primary_profile"] = "admin"
+            elif user.is_subscriber:
+                user_data["primary_profile"] = "subscriber"
+            else:
+                user_data["primary_profile"] = "user"
+
+            return Response({
+                "user": user_data,
+                "message": f"User details retrieved successfully for {user.email or user.unique_id}"
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print('Error fetching single user:', e)
+            return Response({
+                "error": "Failed to retrieve user details"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def get_all_users(self, request):
+        """Get all users with pagination"""
+        try:
             # Get all users from UserAuth
             users_queryset = UserAuth.objects.all().order_by('-date_joined')
             
@@ -523,7 +801,7 @@ class GetAllUsersView(APIView):
             result_page = paginator.paginate_queryset(users_data, request)
             
             return paginator.get_paginated_response(result_page)
-            
+
         except Exception as e:
             print('Error fetching all users:', e)
             return Response({
