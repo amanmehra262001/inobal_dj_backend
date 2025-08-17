@@ -21,6 +21,8 @@ from user.serializers import UserProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from common.constants import S3_USER_BUCKET_NAME, S3_BLOG_BUCKET_NAME
+from rest_framework.pagination import PageNumberPagination
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 # Google Sign in functionality
 
 class GoogleSigninView(APIView):
@@ -444,12 +446,46 @@ class GetAllUsersView(APIView):
             )
 
         try:
+            # Get pagination parameters from query params
+            page = request.query_params.get('page', 1)
+            page_size = request.query_params.get('page_size', 20)  # Default 20 users per page
+            
+            # Validate page_size (max 100 to prevent performance issues)
+            try:
+                page_size = int(page_size)
+                if page_size > 100:
+                    page_size = 100
+                elif page_size < 1:
+                    page_size = 20
+            except ValueError:
+                page_size = 20
+            
+            # Validate page number
+            try:
+                page = int(page)
+                if page < 1:
+                    page = 1
+            except ValueError:
+                page = 1
+
             # Get all users from UserAuth
-            users = UserAuth.objects.all().order_by('-date_joined')
+            users_queryset = UserAuth.objects.all().order_by('-date_joined')
+            
+            # Create paginator
+            paginator = Paginator(users_queryset, page_size)
+            
+            try:
+                users_page = paginator.page(page)
+            except PageNotAnInteger:
+                # If page is not an integer, deliver first page
+                users_page = paginator.page(1)
+            except EmptyPage:
+                # If page is out of range, deliver last page
+                users_page = paginator.page(paginator.num_pages)
             
             users_data = []
             
-            for user in users:
+            for user in users_page:
                 user_data = {
                     "user_id": user.id,
                     "email": user.email,
@@ -511,10 +547,24 @@ class GetAllUsersView(APIView):
                 
                 users_data.append(user_data)
             
+            # Prepare pagination metadata
+            pagination_info = {
+                "current_page": users_page.number,
+                "total_pages": paginator.num_pages,
+                "page_size": page_size,
+                "total_users": paginator.count,
+                "has_next": users_page.has_next(),
+                "has_previous": users_page.has_previous(),
+                "next_page": users_page.next_page_number() if users_page.has_next() else None,
+                "previous_page": users_page.previous_page_number() if users_page.has_previous() else None,
+                "start_index": users_page.start_index(),
+                "end_index": users_page.end_index()
+            }
+            
             return Response({
-                "total_users": len(users_data),
+                "pagination": pagination_info,
                 "users": users_data,
-                "message": "All users retrieved successfully"
+                "message": f"Users retrieved successfully (Page {page} of {paginator.num_pages})"
             }, status=status.HTTP_200_OK)
             
         except Exception as e:
