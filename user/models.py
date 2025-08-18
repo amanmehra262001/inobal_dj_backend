@@ -4,14 +4,15 @@ import uuid
 
 
 class CustomUserManager(BaseUserManager):
-    def create_user(self, unique_id, email=None, password=None, auth_type=None):
+    def create_user(self, unique_id, email=None, password=None, auth_type=None, is_subscriber=False):
         if not unique_id:
             raise ValueError("Users must have a unique ID")
 
         user = self.model(
             unique_id=unique_id,
             email=email,
-            auth_type=auth_type
+            auth_type=auth_type,
+            is_subscriber=is_subscriber
         )
 
         if password:
