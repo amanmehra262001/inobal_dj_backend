@@ -451,12 +451,12 @@ class GetAllUsersView(APIView):
             )
 
         try:
-            # Check if user_id is provided for single user lookup
-            user_id = request.query_params.get('user_id')
+            # Check if email is provided for single user lookup
+            email = request.query_params.get('email')
             
-            if user_id:
+            if email:
                 # Get single user details
-                return self.get_single_user(user_id)
+                return self.get_single_user(email)
             else:
                 # Get all users with pagination
                 return self.get_all_users(request)
@@ -535,7 +535,6 @@ class GetAllUsersView(APIView):
 
             return Response({
                 "message": "User created successfully",
-                "user_id": user.id,
                 "email": user.email,
                 "unique_id": user.unique_id
             }, status=status.HTTP_201_CREATED)
@@ -556,23 +555,20 @@ class GetAllUsersView(APIView):
             )
 
         try:
-            # Get user_id from query params
-            user_id = request.query_params.get('user_id')
-            if not user_id:
+            # Get email from query params
+            email = request.query_params.get('email')
+            if not email:
                 return Response({
-                    "error": "user_id is required for updating a user"
+                    "error": "email is required for updating a user"
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Find the user
             try:
-                user = UserAuth.objects.get(id=user_id)
+                user = UserAuth.objects.get(email=email)
             except UserAuth.DoesNotExist:
-                try:
-                    user = UserAuth.objects.get(unique_id=user_id)
-                except UserAuth.DoesNotExist:
-                    return Response({
-                        "error": f"User with ID or unique_id '{user_id}' not found"
-                    }, status=status.HTTP_404_NOT_FOUND)
+                return Response({
+                    "error": f"User with email '{email}' not found"
+                }, status=status.HTTP_404_NOT_FOUND)
 
             # Update basic user fields
             if 'email' in request.data and request.data['email'] != user.email:
@@ -630,7 +626,6 @@ class GetAllUsersView(APIView):
 
             return Response({
                 "message": "User updated successfully",
-                "user_id": user.id,
                 "email": user.email,
                 "unique_id": user.unique_id
             }, status=status.HTTP_200_OK)
@@ -641,23 +636,18 @@ class GetAllUsersView(APIView):
                 "error": "Failed to update user"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def get_single_user(self, user_id):
+    def get_single_user(self, email):
         """Get detailed information for a single user"""
         try:
             # Try to get user by ID first
             try:
-                user = UserAuth.objects.get(id=user_id)
+                user = UserAuth.objects.get(email=email)
             except UserAuth.DoesNotExist:
-                # Try to get user by unique_id if ID doesn't work
-                try:
-                    user = UserAuth.objects.get(unique_id=user_id)
-                except UserAuth.DoesNotExist:
-                    return Response({
-                        "error": f"User with ID or unique_id '{user_id}' not found"
-                    }, status=status.HTTP_404_NOT_FOUND)
+                return Response({
+                    "error": f"User with email '{email}' not found"
+                }, status=status.HTTP_404_NOT_FOUND)
 
             user_data = {
-                "user_id": user.id,
                 "email": user.email,
                 "unique_id": user.unique_id,
                 "is_staff": user.is_staff,
@@ -737,7 +727,6 @@ class GetAllUsersView(APIView):
             
             for user in users_queryset:
                 user_data = {
-                    "user_id": user.id,
                     "email": user.email,
                     "unique_id": user.unique_id,
                     "is_staff": user.is_staff,
