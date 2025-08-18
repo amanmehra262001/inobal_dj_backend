@@ -771,6 +771,7 @@ class GetAllUsersView(APIView):
                         "full_name": subscriber_profile.full_name,
                         "subscription_plan": subscriber_profile.subscription_plan,
                         "subscription_start": subscriber_profile.subscription_start,
+                        "subscription_end": subscriber_profile.subscription_end,
                         "active": subscriber_profile.active
                     }
                 except SubscriberProfile.DoesNotExist:
