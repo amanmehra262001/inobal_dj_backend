@@ -613,6 +613,8 @@ class GetAllUsersView(APIView):
                     subscriber_profile.subscription_start = request.data['subscription_start']
                 if 'subscription_end' in request.data:
                     subscriber_profile.subscription_end = request.data['subscription_end']
+                if 'active' in request.data:
+                    subscriber_profile.active = request.data['active']
                 subscriber_profile.save()
             else:
                 user_profile, created = UserProfile.objects.get_or_create(user=user)
