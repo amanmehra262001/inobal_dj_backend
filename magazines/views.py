@@ -134,7 +134,12 @@ class PublicMagazinesByYearView(APIView):
             published_date__year=year
         )
 
-        # Step 2: Apply search filter (optional)
+        # Step 2: Apply slug filter (optional)
+        slug = request.query_params.get("slug")
+        if slug:
+            magazines = magazines.filter(tags__slug=slug)
+
+        # Step 3: Apply search filter (optional)
         search_query = request.query_params.get("search")
         if search_query:
             magazines = magazines.filter(
@@ -142,7 +147,7 @@ class PublicMagazinesByYearView(APIView):
                 Q(description__icontains=search_query)
             )
 
-        # Step 3: Order and serialize
+        # Step 4: Order and serialize
         magazines = magazines.order_by('-published_date')
         serializer = MagazineSerializer(magazines, many=True)
         return Response(serializer.data, status=200)

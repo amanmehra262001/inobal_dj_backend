@@ -21,10 +21,6 @@ class MagazineTag(models.Model):
         super().save(*args, **kwargs)
 
 
-# magazines/models.py
-
-from django.db import models
-
 class Magazine(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True)
