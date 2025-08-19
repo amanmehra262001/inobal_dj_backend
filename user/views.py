@@ -16,7 +16,7 @@ from django.contrib.auth.hashers import check_password
 from user.tokens import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from common.views import CustomJWTAuthentication, IsAdminUser
+from common.views import CustomJWTAuthentication, IsAdminUser, IsSubscriberUser
 from user.serializers import UserProfileSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
@@ -800,3 +800,39 @@ class GetAllUsersView(APIView):
             return Response({
                 "error": "Failed to retrieve users"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class GetUserSubscriptionDetails(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsSubscriberUser]
+
+    def get(self, request, *args, **kwargs):
+        """
+        Fetch subscription details for the currently authenticated user.
+        """
+        user = request.user
+
+        # Ensure the user is actually a subscriber
+        if not user.is_subscriber:
+            return Response({
+                "error": "This user does not have a subscription."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            subscriber_profile = SubscriberProfile.objects.get(user=user)
+        except SubscriberProfile.DoesNotExist:
+            return Response({
+                "error": "Subscriber profile not found."
+            }, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize subscription details
+        subscription_details = {
+            "subscriber_name": subscriber_profile.full_name,
+            "subscription_plan": subscriber_profile.subscription_plan,
+            "subscription_start": subscriber_profile.subscription_start,
+            "subscription_end": subscriber_profile.subscription_end,
+            "active": subscriber_profile.active,
+        }
+
+        return Response(subscription_details, status=status.HTTP_200_OK)

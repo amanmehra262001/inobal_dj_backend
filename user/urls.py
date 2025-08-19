@@ -1,6 +1,6 @@
 
 from django.urls import path
-from .views import GoogleSigninView, EmailPasswordSignupView, EmailPasswordLoginView, AdminLoginView, AuthenticatedUserView, CustomTokenView, UserProfileView, S3UserImageManager, GetAllUsersView
+from .views import GoogleSigninView, EmailPasswordSignupView, EmailPasswordLoginView, AdminLoginView, AuthenticatedUserView, CustomTokenView, UserProfileView, S3UserImageManager, GetAllUsersView, GetUserSubscriptionDetails
 
 urlpatterns = [
     path('google-signin/', GoogleSigninView.as_view(), name='google_signin'),
@@ -15,4 +15,5 @@ urlpatterns = [
     
     # Admin-only endpoints
     path('admin/all-users/', GetAllUsersView.as_view(), name='admin-get-all-users'),
+    path('subscription/', GetUserSubscriptionDetails.as_view(), name='admin-get-user-subscription'),
 ]
