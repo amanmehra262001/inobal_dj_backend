@@ -888,7 +888,7 @@ class OmnisendContactsView(APIView):
         try:
             response = requests.post(OMNISEND_BASE_URL, json=payload, headers=headers, timeout=10)
 
-            if response.status_code == 201:
+            if response.status_code == 200 or response.status_code == 201:
                 return {"success": True, "data": response.json()}
 
             elif response.status_code == 409:
@@ -914,7 +914,7 @@ class OmnisendContactsView(APIView):
 
         contact, created = OmnisendContacts.objects.get_or_create(email=email)
 
-        omni_response = self.create_omnisend_contact(email=email, status="subscribed")
+        omni_response = self.create_omnisend_contact(email=email, status="nonSubscribed")
 
         if omni_response["success"]:
             data = omni_response["data"]
