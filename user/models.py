@@ -113,3 +113,23 @@ class SubscriberProfile(models.Model):
 
     def __str__(self):
         return f"Subscriber: {self.full_name}"
+
+
+class OmnisendContacts(models.Model):
+    email = models.EmailField(unique=True, blank=True, null=True)
+    omnisend_id = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="ID returned from Omnisend API"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Omnisend Contact"
+        verbose_name_plural = "Omnisend Contacts"
+
+    def __str__(self):
+        return self.email or f"Contact {self.omnisend_id}"

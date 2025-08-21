@@ -5,9 +5,9 @@ from django.http import JsonResponse
 from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 import requests
-from rest_framework import status
+from rest_framework import status, permissions
 import traceback
-from user.models import UserAuth, AdminProfile, UserProfile, SubscriberProfile
+from user.models import UserAuth, AdminProfile, UserProfile, SubscriberProfile, OmnisendContacts
 import uuid
 from common.constants import AUTH_TYPE_GOOGLE, AUTH_TYPE_EMAIL, AUTH_TYPE_ADMIN, AUTH_TYPE_USER, AUTH_TYPE_SUBSCRIBER
 from django.contrib.auth import authenticate
@@ -17,14 +17,16 @@ from user.tokens import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from common.views import CustomJWTAuthentication, IsAdminUser, IsSubscriberUser
-from user.serializers import UserProfileSerializer
+from user.serializers import UserProfileSerializer, OmnisendContactsSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from common.constants import S3_USER_BUCKET_NAME, S3_BLOG_BUCKET_NAME
 from rest_framework.pagination import PageNumberPagination
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-# Google Sign in functionality
+from django.conf import settings
 
+
+# Google Sign in functionality
 class GoogleSigninView(APIView):
     permission_classes = [AllowAny]
 
@@ -836,3 +838,119 @@ class GetUserSubscriptionDetails(APIView):
         }
 
         return Response(subscription_details, status=status.HTTP_200_OK)
+
+
+OMNISEND_BASE_URL = "https://api.omnisend.com/v5/contacts"
+OMNISEND_API_KEY = settings.OMNISEND_API_KEY
+class OmnisendContactsView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+
+    def get_permissions(self):
+        """
+        Public: POST
+        Admin only: GET, PUT
+        """
+        if self.request.method == "POST":
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
+    @staticmethod
+    def create_omnisend_contact(email: str, custom_properties: dict = None, status: str = "nonSubscribed"):
+        """
+        Creates a contact in Omnisend via API.
+        Returns dict {"success": True, "data": {...}} on success
+        or {"success": False, "error": "message"} on failure.
+        """
+        if not OMNISEND_API_KEY:
+            return {"success": False, "error": "Omnisend API key not configured."}
+
+        headers = {
+            "X-API-KEY": OMNISEND_API_KEY,
+            "accept": "application/json",
+            "content-type": "application/json"
+        }
+
+        payload = {
+            "customProperties": custom_properties or {},
+            "identifiers": [
+                {
+                    "channels": {
+                        "email": {
+                            "status": status
+                        }
+                    },
+                    "type": "email",
+                    "id": email
+                }
+            ]
+        }
+
+        try:
+            response = requests.post(OMNISEND_BASE_URL, json=payload, headers=headers, timeout=10)
+
+            if response.status_code == 201:
+                return {"success": True, "data": response.json()}
+
+            elif response.status_code == 409:
+                # Already exists — return response anyway
+                return {"success": True, "data": response.json()}
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Omnisend API error {response.status_code}: {response.text}"
+                }
+
+        except requests.Timeout:
+            return {"success": False, "error": "Omnisend API request timed out."}
+        except requests.RequestException as e:
+            return {"success": False, "error": str(e)}
+
+    # Public POST: subscribe user
+    def post(self, request):
+        email = request.data.get("email")
+        if not email:
+            return Response({"detail": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        contact, created = OmnisendContacts.objects.get_or_create(email=email)
+
+        omni_response = self.create_omnisend_contact(email=email, status="subscribed")
+
+        if omni_response["success"]:
+            data = omni_response["data"]
+            contact.omnisend_id = data.get("contactID", contact.omnisend_id)
+            contact.is_subscribed = True
+            contact.save()
+        else:
+            # Do not fail user signup just because Omnisend failed
+            return Response(
+                {"detail": "Contact saved locally, but Omnisend sync failed.", "error": omni_response["error"]},
+                status=status.HTTP_202_ACCEPTED
+            )
+
+        serializer = OmnisendContactsSerializer(contact)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    # Admin GET: list contacts
+    def get(self, request):
+        contacts = OmnisendContacts.objects.all().order_by("-created_at")
+        serializer = OmnisendContactsSerializer(contacts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    # # Admin PUT: update contact
+    # def put(self, request):
+    #     contact_id = request.data.get("id")
+    #     if not contact_id:
+    #         return Response({"detail": "Contact ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    #     try:
+    #         contact = OmnisendContacts.objects.get(id=contact_id)
+    #     except OmnisendContacts.DoesNotExist:
+    #         return Response({"detail": "Contact not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    #     serializer = OmnisendContactsSerializer(contact, data=request.data, partial=True)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
