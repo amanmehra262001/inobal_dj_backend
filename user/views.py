@@ -919,7 +919,6 @@ class OmnisendContactsView(APIView):
         if omni_response["success"]:
             data = omni_response["data"]
             contact.omnisend_id = data.get("contactID", contact.omnisend_id)
-            contact.is_subscribed = True
             contact.save()
         else:
             # Do not fail user signup just because Omnisend failed
