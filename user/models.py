@@ -124,6 +124,10 @@ class OmnisendContacts(models.Model):
         blank=True,
         help_text="ID returned from Omnisend API"
     )
+    is_contacted = models.BooleanField(default=False)
+    is_subscribed = models.BooleanField(default=False)
+    note = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

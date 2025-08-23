@@ -5,7 +5,7 @@ from django.http import JsonResponse
 from django.db import transaction
 from rest_framework_simplejwt.tokens import RefreshToken
 import requests
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 import traceback
 from user.models import UserAuth, AdminProfile, UserProfile, SubscriberProfile, OmnisendContacts
 import uuid
@@ -17,7 +17,7 @@ from user.tokens import CustomTokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from common.views import CustomJWTAuthentication, IsAdminUser, IsSubscriberUser
-from user.serializers import UserProfileSerializer, OmnisendContactsSerializer
+from user.serializers import UserProfileSerializer, OmnisendContactsSerializer, OmnisendContactsUpdateSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from common.constants import S3_USER_BUCKET_NAME, S3_BLOG_BUCKET_NAME
@@ -937,19 +937,8 @@ class OmnisendContactsView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-    # # Admin PUT: update contact
-    # def put(self, request):
-    #     contact_id = request.data.get("id")
-    #     if not contact_id:
-    #         return Response({"detail": "Contact ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-    #     try:
-    #         contact = OmnisendContacts.objects.get(id=contact_id)
-    #     except OmnisendContacts.DoesNotExist:
-    #         return Response({"detail": "Contact not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    #     serializer = OmnisendContactsSerializer(contact, data=request.data, partial=True)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_200_OK)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class UpdateOmnisendContactView(generics.UpdateAPIView):
+    queryset = OmnisendContacts.objects.all()
+    serializer_class = OmnisendContactsUpdateSerializer
+    permission_classes = [IsAdminUser]  # ✅ only admins can update
+    lookup_field = "id"  # update by primary key

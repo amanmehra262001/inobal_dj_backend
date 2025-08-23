@@ -1,6 +1,6 @@
 
 from django.urls import path
-from .views import GoogleSigninView, EmailPasswordSignupView, EmailPasswordLoginView, AdminLoginView, AuthenticatedUserView, CustomTokenView, UserProfileView, S3UserImageManager, GetAllUsersView, GetUserSubscriptionDetails, OmnisendContactsView
+from .views import GoogleSigninView, EmailPasswordSignupView, EmailPasswordLoginView, AdminLoginView, AuthenticatedUserView, CustomTokenView, UserProfileView, S3UserImageManager, GetAllUsersView, GetUserSubscriptionDetails, OmnisendContactsView, UpdateOmnisendContactView
 
 urlpatterns = [
     path('google-signin/', GoogleSigninView.as_view(), name='google_signin'),
@@ -16,5 +16,6 @@ urlpatterns = [
     # Admin-only endpoints
     path('admin/all-users/', GetAllUsersView.as_view(), name='admin-get-all-users'),
     path('subscription/', GetUserSubscriptionDetails.as_view(), name='admin-get-user-subscription'),
-    path('subscribe/', OmnisendContactsView.as_view(), name='user-subscribe')
+    path('subscribe/', OmnisendContactsView.as_view(), name='user-subscribe'),
+    path("omnisend/contact/<int:id>/", UpdateOmnisendContactView.as_view(), name="update-omnisend-contact"),
 ]

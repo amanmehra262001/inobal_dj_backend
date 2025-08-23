@@ -18,3 +18,9 @@ class OmnisendContactsSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "omnisend_id", "created_at", "updated_at"]
+
+
+class OmnisendContactsUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OmnisendContacts
+        fields = ["is_contacted", "is_subscribed", "note"]
