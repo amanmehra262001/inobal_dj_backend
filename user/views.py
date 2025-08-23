@@ -471,7 +471,6 @@ class GetAllUsersView(APIView):
 
     def post(self, request, *args, **kwargs):
         """Create a new user"""
-        # Check if the authenticated user is an admin
         if not request.user.is_staff:
             return Response(
                 {"error": "Access denied. Admin privileges required."}, 
@@ -479,7 +478,7 @@ class GetAllUsersView(APIView):
             )
 
         try:
-            # Extract user data from request
+            # Extract user data
             email = request.data.get('email')
             password = request.data.get('password')
             unique_id = request.data.get('unique_id')
@@ -493,23 +492,45 @@ class GetAllUsersView(APIView):
             subscriber_name = request.data.get('subscriber_name', email.split('@')[0])
             user_name = request.data.get('user_name', email.split('@')[0])
 
-            # Validate required fields
             if not email or not password:
                 return Response({
                     "error": "Email and password are required"
                 }, status=status.HTTP_400_BAD_REQUEST)
 
-            # Check if email already exists
-            if UserAuth.objects.filter(email=email).exists():
-                return Response({
-                    "error": "Email is already taken"
-                }, status=status.HTTP_400_BAD_REQUEST)
+            # Check if user already exists
+            existing_user = UserAuth.objects.filter(email=email).first()
 
-            # Generate unique_id if not provided
+            if existing_user:
+                # --- Update logic instead of error ---
+                user = existing_user
+
+                if is_subscriber and not user.is_subscriber:
+                    # Upgrade to subscriber
+                    user.is_subscriber = True
+                    user.save(update_fields=["is_subscriber"])
+
+                    # Create SubscriberProfile if not already there
+                    SubscriberProfile.objects.get_or_create(
+                        user=user,
+                        defaults={
+                            "full_name": subscriber_name,
+                            "subscription_plan": subscription_plan,
+                            "subscription_start": subscription_start,
+                            "subscription_end": subscription_end
+                        }
+                    )
+
+                return Response({
+                    "message": "User already exists. Subscriber status updated if needed.",
+                    "email": user.email,
+                    "unique_id": user.unique_id,
+                    "is_subscriber": user.is_subscriber
+                }, status=status.HTTP_200_OK)
+
+            # --- Create a new user if not existing ---
             if not unique_id:
                 unique_id = f"email_{uuid.uuid4().hex[:8]}"
 
-            # Create the user
             user = UserAuth.objects.create_user(
                 email=email,
                 password=password,
@@ -518,7 +539,7 @@ class GetAllUsersView(APIView):
                 is_subscriber=is_subscriber,
             )
 
-            # Create profile based on user type
+            # Create profile
             if is_subscriber:
                 SubscriberProfile.objects.create(
                     user=user,
