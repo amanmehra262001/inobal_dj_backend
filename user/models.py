@@ -104,8 +104,8 @@ class SubscriberProfile(models.Model):
     user = models.OneToOneField(UserAuth, on_delete=models.CASCADE, related_name='subscriber_profile')
     full_name = models.CharField(max_length=255)
     subscription_plan = models.CharField(max_length=100, blank=True, null=True)
-    subscription_start = models.DateField(auto_now_add=True)
-    subscription_end = models.DateField(blank=True, null=True)
+    subscription_start = models.DateField(null=True, blank=True)
+    subscription_end = models.DateField(null=True, blank=True)
     active = models.BooleanField(default=True)
 
     class Meta:
