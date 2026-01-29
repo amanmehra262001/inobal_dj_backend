@@ -159,7 +159,7 @@ class PublicMagazinesForCurrentView(APIView):
     authentication_classes = []
 
     def get(self, request):
-        magazine = Magazine.objects.filter(is_published=True).order_by('published_date').first()
+        magazine = Magazine.objects.filter(is_published=True).order_by('-published_date').first()
 
         magazine = {
             'id': magazine.id,
