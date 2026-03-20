@@ -152,7 +152,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('MYSQL_DATABASE_NAME', 'worthminds'),
         'USER': os.getenv('MYSQL_USER', 'root'),
-        'PASSWORD': os.getenv('MYSQL_PASSWORD', 'admin12345'),
+        'PASSWORD': os.getenv('MYSQL_PASSWORD', 'admin@12345'),
         'HOST': 'localhost',
         'PORT': '3306',        # default MySQL port
         'OPTIONS': {
