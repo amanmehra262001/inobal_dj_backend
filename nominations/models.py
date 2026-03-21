@@ -39,6 +39,7 @@ class NominationFormField(models.Model):
         DATETIME = "datetime", _("Datetime")
         SINGLE_CHOICE = "single_choice", _("Single choice")
         MULTI_CHOICE = "multi_choice", _("Multi choice")
+        FILE = "file", _("File")
 
     form = models.ForeignKey(
         NominationForm,
@@ -63,12 +64,31 @@ class NominationFormField(models.Model):
     order = models.IntegerField(default=0)
 
     help_text = models.TextField(blank=True, default="")
+    max_text_length = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=_("Optional maximum character length for text-like fields."),
+    )
 
     # For choice fields, store available options.
     # Expected flexible formats, for example:
     # - ["Option A", "Option B"]
     # - [{"value": "a", "label": "Option A"}, ...]
     options = models.JSONField(blank=True, default=list)
+    allow_multiple_files = models.BooleanField(
+        default=False,
+        help_text=_("For file fields, allow multiple files in one submission."),
+    )
+    max_files = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=_("For file fields, maximum number of files allowed."),
+    )
+    max_file_size_mb = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text=_("For file fields, maximum size allowed per file in MB."),
+    )
 
     class Meta:
         verbose_name = _("Nomination Form Field")
