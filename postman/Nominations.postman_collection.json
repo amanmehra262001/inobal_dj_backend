@@ -2,7 +2,7 @@
   "info": {
     "name": "Nominations",
     "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "description": "Nominations API (dynamic forms, submissions, file uploads).\n\nField layout: each `fields[]` item may include `space_occupancy`: `\"full\"` (full width) or `\"half\"` (50% width). Default on the server is `full` if omitted.",
+    "description": "Nominations API (dynamic forms, submissions, file uploads).\n\n**Field layout**\nEach `fields[]` item may include:\n- `space_occupancy`: `\"full\"` (full width, default) or `\"half\"` (50% width)\n\n**Display-only field types**\n`section_title` and `section_note` are layout/display-only fields. They render as headings or informational notes on the public form. Rules:\n- They are **never validated on submit** — do not include their keys in `responses`.\n- `label` holds the heading text (for `section_title`) or an optional note title (for `section_note`).\n- `help_text` holds the body copy for `section_note`.\n- `required` is always forced to `false` on the server for these types.\n- A unique slug `key` is still required (DB constraint), but it is purely internal.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -42,11 +42,7 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"unique_id\": \"{{adminUniqueId}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/user/login/admin/",
@@ -71,7 +67,8 @@
               "raw": "{{baseUrl}}/api/nominations/field-types/",
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "field-types", ""]
-            }
+            },
+            "description": "Returns all available field type value/label pairs, including `section_title` and `section_note`."
           },
           "response": []
         },
@@ -98,7 +95,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "forms", "{{formId}}", ""]
             },
-            "description": "Response includes nested `fields` with `space_occupancy` per field."
+            "description": "Returns the full form with nested `fields[]`. Each field includes `space_occupancy`.\n\nFields with `field_type` of `section_title` or `section_note` are display-only — render them as headings/notes in the UI. Do **not** include their keys in the `responses` payload when submitting; the server skips them entirely during validation."
           },
           "response": []
         },
@@ -110,23 +107,16 @@
             "body": {
               "mode": "formdata",
               "formdata": [
-                {
-                  "key": "file",
-                  "type": "file",
-                  "src": []
-                },
-                {
-                  "key": "folder",
-                  "value": "nominations/custom-folder",
-                  "type": "text"
-                }
+                { "key": "file", "type": "file", "src": [] },
+                { "key": "folder", "value": "nominations/custom-folder", "type": "text" }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/nominations/forms/{{formId}}/fields/{{fieldKey}}/upload/",
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "forms", "{{formId}}", "fields", "{{fieldKey}}", "upload", ""]
-            }
+            },
+            "description": "Multipart upload for a `file` field. Only valid for fields with `field_type: \"file\"`. Returns `{ file: { key, url, name, content_type, size } }` or `{ files: [...] }` for multiple."
           },
           "response": []
         },
@@ -139,18 +129,15 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"responses\": {\n    \"nominee_name\": \"Jane Doe\",\n    \"supporting_documents\": [\n      {\n        \"key\": \"nominations/1/supporting_documents/abc.pdf\",\n        \"url\": \"https://worthminds-blogs.s3.amazonaws.com/nominations/1/supporting_documents/abc.pdf\"\n      }\n    ]\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"responses\": {\n    \"nominee_name\": \"Jane Doe\",\n    \"nominee_bio\": \"Award-winning journalist with 10 years of experience.\",\n    \"supporting_documents\": [\n      {\n        \"key\": \"nominations/1/supporting_documents/abc.pdf\",\n        \"url\": \"https://worthminds-blogs.s3.amazonaws.com/nominations/1/supporting_documents/abc.pdf\"\n      }\n    ]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/api/nominations/forms/{{formId}}/submit/",
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "forms", "{{formId}}", "submit", ""]
-            }
+            },
+            "description": "Submit responses for an active form. `responses` must be a JSON object keyed by field `key`.\n\n**Do not include keys for `section_title` or `section_note` fields** — these are display-only and are skipped by the server during validation. Including them is harmless but unnecessary."
           },
           "response": []
         }
@@ -175,7 +162,7 @@
           "response": []
         },
         {
-          "name": "Create Form (fields include space_occupancy)",
+          "name": "Create Form (with section_title, section_note, and file field)",
           "request": {
             "method": "POST",
             "header": [
@@ -184,18 +171,15 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Annual Awards 2026\",\n  \"description\": \"Nominate candidates\",\n  \"is_active\": true,\n  \"fields\": [\n    {\n      \"key\": \"nominee_name\",\n      \"label\": \"Nominee Name\",\n      \"field_type\": \"text\",\n      \"required\": true,\n      \"order\": 1,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"Max 25 chars\",\n      \"max_text_length\": 25,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"nominee_bio\",\n      \"label\": \"Nominee Bio\",\n      \"field_type\": \"textarea\",\n      \"required\": false,\n      \"order\": 2,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Half width column\",\n      \"max_text_length\": 500,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"supporting_documents\",\n      \"label\": \"Supporting Documents\",\n      \"field_type\": \"file\",\n      \"required\": false,\n      \"order\": 3,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Half width; upload image/pdf\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": true,\n      \"max_files\": 3,\n      \"max_file_size_mb\": 5\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"name\": \"Annual Awards 2026\",\n  \"description\": \"Nominate candidates for the annual awards.\",\n  \"is_active\": true,\n  \"fields\": [\n    {\n      \"key\": \"section_nominee_info\",\n      \"label\": \"Nominee Information\",\n      \"field_type\": \"section_title\",\n      \"required\": false,\n      \"order\": 1,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"nominee_name\",\n      \"label\": \"Nominee Name\",\n      \"field_type\": \"text\",\n      \"required\": true,\n      \"order\": 2,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Full legal name, max 25 characters.\",\n      \"max_text_length\": 25,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"nominee_bio\",\n      \"label\": \"Nominee Bio\",\n      \"field_type\": \"textarea\",\n      \"required\": false,\n      \"order\": 3,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Brief biography, max 500 characters.\",\n      \"max_text_length\": 500,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"supporting_documents\",\n      \"label\": \"Supporting Documents\",\n      \"field_type\": \"file\",\n      \"required\": false,\n      \"order\": 4,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"Upload images or PDFs. Max 3 files, 5 MB each.\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": true,\n      \"max_files\": 3,\n      \"max_file_size_mb\": 5\n    },\n    {\n      \"key\": \"note_terms\",\n      \"label\": \"Terms & Conditions\",\n      \"field_type\": \"section_note\",\n      \"required\": false,\n      \"order\": 5,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"By submitting, you agree to our editorial terms and confirm that the information provided is accurate to the best of your knowledge.\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/api/nominations/admin/forms/",
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "admin", "forms", ""]
-            }
+            },
+            "description": "Creates a form with a full field set including:\n- `section_title` — renders as a section heading; only `label` is displayed\n- `section_note` — renders as an informational note; `label` is an optional title, `help_text` is the body copy\n- Regular input fields (`text`, `textarea`, `file`)\n\n`section_title` and `section_note` fields are skipped entirely during submit validation. `required` is forced to `false` by the server for these types regardless of what is sent."
           },
           "response": []
         },
@@ -215,7 +199,7 @@
           "response": []
         },
         {
-          "name": "Update Form (PUT)",
+          "name": "Update Form (PUT) — full field replace",
           "request": {
             "method": "PUT",
             "header": [
@@ -224,24 +208,20 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Annual Awards 2026\",\n  \"description\": \"Updated\",\n  \"is_active\": true,\n  \"fields\": [\n    {\n      \"key\": \"nominee_name\",\n      \"label\": \"Nominee Name\",\n      \"field_type\": \"text\",\n      \"required\": true,\n      \"order\": 1,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Now half width\",\n      \"max_text_length\": 30,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"supporting_documents\",\n      \"label\": \"Supporting Documents\",\n      \"field_type\": \"file\",\n      \"required\": false,\n      \"order\": 2,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"Full width row\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": true,\n      \"max_files\": 2,\n      \"max_file_size_mb\": 3\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"name\": \"Annual Awards 2026\",\n  \"description\": \"Updated description.\",\n  \"is_active\": true,\n  \"fields\": [\n    {\n      \"key\": \"section_nominee_info\",\n      \"label\": \"Nominee Information\",\n      \"field_type\": \"section_title\",\n      \"required\": false,\n      \"order\": 1,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"nominee_name\",\n      \"label\": \"Nominee Name\",\n      \"field_type\": \"text\",\n      \"required\": true,\n      \"order\": 2,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Now half width, max 30 chars.\",\n      \"max_text_length\": 30,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"supporting_documents\",\n      \"label\": \"Supporting Documents\",\n      \"field_type\": \"file\",\n      \"required\": false,\n      \"order\": 3,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"Full width row. Max 2 files, 3 MB each.\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": true,\n      \"max_files\": 2,\n      \"max_file_size_mb\": 3\n    },\n    {\n      \"key\": \"note_terms\",\n      \"label\": \"Terms & Conditions\",\n      \"field_type\": \"section_note\",\n      \"required\": false,\n      \"order\": 4,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"By submitting, you agree to our editorial terms and confirm that the information provided is accurate to the best of your knowledge.\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/api/nominations/admin/forms/{{formId}}/",
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "admin", "forms", "{{formId}}", ""]
             },
-            "description": "Sending `fields` replaces all field rows on the server."
+            "description": "Sending `fields` replaces **all** existing field rows on the server (full replace, not merge). Always include the complete desired field list, including any `section_title` or `section_note` rows you want to keep."
           },
           "response": []
         },
         {
-          "name": "Partial Update Form (PATCH)",
+          "name": "Partial Update Form (PATCH) — metadata only",
           "request": {
             "method": "PATCH",
             "header": [
@@ -251,17 +231,14 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"is_active\": false\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "options": { "raw": { "language": "json" } }
             },
             "url": {
               "raw": "{{baseUrl}}/api/nominations/admin/forms/{{formId}}/",
               "host": ["{{baseUrl}}"],
               "path": ["api", "nominations", "admin", "forms", "{{formId}}", ""]
-            }
+            },
+            "description": "Omitting `fields` updates only the top-level metadata (`name`, `description`, `is_active`). Existing field rows are untouched."
           },
           "response": []
         },
