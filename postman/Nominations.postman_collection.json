@@ -1,0 +1,339 @@
+{
+  "info": {
+    "name": "Nominations",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "Nominations API (dynamic forms, submissions, file uploads).\n\nField layout: each `fields[]` item may include `space_occupancy`: `\"full\"` (full width) or `\"half\"` (50% width). Default on the server is `full` if omitted.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "adminUniqueId", "value": "" },
+    { "key": "adminPassword", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "formId", "value": "1" },
+    { "key": "submissionId", "value": "1" },
+    { "key": "fieldKey", "value": "supporting_documents" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login (saves accessToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const j = pm.response.json();",
+                  "if (j && j.access_token) {",
+                  "  pm.collectionVariables.set('accessToken', j.access_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unique_id\": \"{{adminUniqueId}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/login/admin/",
+              "host": ["{{baseUrl}}"],
+              "path": ["user", "login", "admin", ""]
+            },
+            "description": "Staff JWT for admin nomination routes. Use `access_token` from response as Bearer token."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Public",
+      "item": [
+        {
+          "name": "Get Field Types",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/field-types/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "field-types", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Active Forms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/forms/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "forms", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Active Form By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/forms/{{formId}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "forms", "{{formId}}", ""]
+            },
+            "description": "Response includes nested `fields` with `space_occupancy` per field."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload File(s) for Field",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "folder",
+                  "value": "nominations/custom-folder",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/forms/{{formId}}/fields/{{fieldKey}}/upload/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "forms", "{{formId}}", "fields", "{{fieldKey}}", "upload", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Nomination",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responses\": {\n    \"nominee_name\": \"Jane Doe\",\n    \"supporting_documents\": [\n      {\n        \"key\": \"nominations/1/supporting_documents/abc.pdf\",\n        \"url\": \"https://worthminds-blogs.s3.amazonaws.com/nominations/1/supporting_documents/abc.pdf\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/forms/{{formId}}/submit/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "forms", "{{formId}}", "submit", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin - Forms",
+      "item": [
+        {
+          "name": "List All Forms",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/forms/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "forms", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Form (fields include space_occupancy)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Annual Awards 2026\",\n  \"description\": \"Nominate candidates\",\n  \"is_active\": true,\n  \"fields\": [\n    {\n      \"key\": \"nominee_name\",\n      \"label\": \"Nominee Name\",\n      \"field_type\": \"text\",\n      \"required\": true,\n      \"order\": 1,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"Max 25 chars\",\n      \"max_text_length\": 25,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"nominee_bio\",\n      \"label\": \"Nominee Bio\",\n      \"field_type\": \"textarea\",\n      \"required\": false,\n      \"order\": 2,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Half width column\",\n      \"max_text_length\": 500,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"supporting_documents\",\n      \"label\": \"Supporting Documents\",\n      \"field_type\": \"file\",\n      \"required\": false,\n      \"order\": 3,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Half width; upload image/pdf\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": true,\n      \"max_files\": 3,\n      \"max_file_size_mb\": 5\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/forms/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "forms", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Form By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/forms/{{formId}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "forms", "{{formId}}", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Form (PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Annual Awards 2026\",\n  \"description\": \"Updated\",\n  \"is_active\": true,\n  \"fields\": [\n    {\n      \"key\": \"nominee_name\",\n      \"label\": \"Nominee Name\",\n      \"field_type\": \"text\",\n      \"required\": true,\n      \"order\": 1,\n      \"space_occupancy\": \"half\",\n      \"help_text\": \"Now half width\",\n      \"max_text_length\": 30,\n      \"options\": [],\n      \"allow_multiple_files\": false,\n      \"max_files\": null,\n      \"max_file_size_mb\": null\n    },\n    {\n      \"key\": \"supporting_documents\",\n      \"label\": \"Supporting Documents\",\n      \"field_type\": \"file\",\n      \"required\": false,\n      \"order\": 2,\n      \"space_occupancy\": \"full\",\n      \"help_text\": \"Full width row\",\n      \"max_text_length\": null,\n      \"options\": [],\n      \"allow_multiple_files\": true,\n      \"max_files\": 2,\n      \"max_file_size_mb\": 3\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/forms/{{formId}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "forms", "{{formId}}", ""]
+            },
+            "description": "Sending `fields` replaces all field rows on the server."
+          },
+          "response": []
+        },
+        {
+          "name": "Partial Update Form (PATCH)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/forms/{{formId}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "forms", "{{formId}}", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Form",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/forms/{{formId}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "forms", "{{formId}}", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin - Submissions",
+      "item": [
+        {
+          "name": "List Submissions",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/submissions/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "submissions", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Submissions By Form",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/submissions/?form={{formId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "submissions", ""],
+              "query": [
+                { "key": "form", "value": "{{formId}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Submission By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/nominations/admin/submissions/{{submissionId}}/",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "nominations", "admin", "submissions", "{{submissionId}}", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

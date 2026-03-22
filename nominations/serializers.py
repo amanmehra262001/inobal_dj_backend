@@ -13,6 +13,7 @@ class NominationFormFieldSerializer(serializers.ModelSerializer):
             "field_type",
             "required",
             "order",
+            "space_occupancy",
             "help_text",
             "max_text_length",
             "options",
@@ -87,6 +88,11 @@ class NominationSubmitSerializer(serializers.Serializer):
 
         errors = {}
         for field in form.fields.all():
+            # Section titles and notes are display-only — they hold no user
+            # response and must never be validated or required on submit.
+            if field.field_type in NominationFormField.DISPLAY_ONLY_TYPES:
+                continue
+
             value = responses.get(field.key)
             if field.required and value in (None, "", []):
                 errors[field.key] = "This field is required."

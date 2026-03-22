@@ -40,6 +40,18 @@ class NominationFormField(models.Model):
         SINGLE_CHOICE = "single_choice", _("Single choice")
         MULTI_CHOICE = "multi_choice", _("Multi choice")
         FILE = "file", _("File")
+        # ── Layout / display-only types ──────────────────────────────────────
+        # These carry no user response. They are skipped entirely during
+        # submit validation. Only `label` (title) / `help_text` (note body)
+        # are meaningful for these types.
+        SECTION_TITLE = "section_title", _("Section title")
+        SECTION_NOTE = "section_note", _("Section note")
+
+    # ── Display-only field types that must never be validated on submit ──
+    DISPLAY_ONLY_TYPES = {
+        FieldType.SECTION_TITLE,
+        FieldType.SECTION_NOTE,
+    }
 
     form = models.ForeignKey(
         NominationForm,
@@ -62,6 +74,17 @@ class NominationFormField(models.Model):
     )
     required = models.BooleanField(default=False)
     order = models.IntegerField(default=0)
+
+    class SpaceOccupancy(models.TextChoices):
+        FULL = "full", _("Full width")
+        HALF = "half", _("Half width (50%)")
+
+    space_occupancy = models.CharField(
+        max_length=10,
+        choices=SpaceOccupancy.choices,
+        default=SpaceOccupancy.FULL,
+        help_text=_("Layout width: full row or half (50%) column."),
+    )
 
     help_text = models.TextField(blank=True, default="")
     max_text_length = models.PositiveIntegerField(
@@ -130,4 +153,3 @@ class Nominations(models.Model):
 
     def __str__(self) -> str:
         return f"{self.form.name} - {self.id}"
- 

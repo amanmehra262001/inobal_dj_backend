@@ -12,6 +12,7 @@ class NominationFormFieldInline(admin.TabularInline):
         "label",
         "field_type",
         "required",
+        "space_occupancy",
         "options",
         "help_text",
     )
@@ -33,7 +34,3 @@ class NominationsAdmin(admin.ModelAdmin):
     list_filter = ("form",)
     search_fields = ("id",)
     readonly_fields = ("created_at", "updated_at")
-
-from django.contrib import admin
-
-# Register your models here.
