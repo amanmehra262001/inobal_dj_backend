@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from common.constants import S3_BLOG_BUCKET_NAME
-from common.utils.s3_utils import upload_image_to_s3
+from common.utils.s3_utils import upload_image_to_s3, delete_image_from_s3
 from common.views import CustomJWTAuthentication, IsAdminUser
 from .models import NominationForm, NominationFormField, Nominations
 from .serializers import (
@@ -319,7 +319,7 @@ class NominationFieldFileUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        result = delete_file_from_s3(key=key, bucket=S3_BLOG_BUCKET_NAME)
+        result = delete_image_from_s3(bucket=S3_BLOG_BUCKET_NAME, image_key=key)
         if result["error"]:
             return Response(
                 {"error": result["message"]},
