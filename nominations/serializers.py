@@ -4,6 +4,8 @@ from .models import NominationForm, NominationFormField, Nominations
 
 
 class NominationFormFieldSerializer(serializers.ModelSerializer):
+    label = serializers.CharField(allow_blank=True)
+
     class Meta:
         model = NominationFormField
         fields = (
@@ -23,6 +25,12 @@ class NominationFormFieldSerializer(serializers.ModelSerializer):
         )
         read_only_fields = ("id",)
 
+    def validate(self, attrs):
+        field_type = attrs.get("field_type", "")
+        label = attrs.get("label", "")
+        if field_type != NominationFormField.FieldType.SECTION_NOTE and not label.strip():
+            raise serializers.ValidationError({"label": "This field may not be blank."})
+        return attrs
 
 class NominationFormSerializer(serializers.ModelSerializer):
     fields = NominationFormFieldSerializer(many=True, required=False)
