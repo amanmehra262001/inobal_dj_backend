@@ -288,3 +288,42 @@ class NominationFieldFileUploadView(APIView):
             return Response({"files": uploaded_files}, status=status.HTTP_201_CREATED)
 
         return Response({"file": uploaded_files[0]}, status=status.HTTP_201_CREATED)
+
+
+    def delete(self, request, form_id, field_key):
+        form = get_object_or_404(
+            NominationForm.objects.prefetch_related("fields"),
+            pk=form_id,
+            is_active=True,
+        )
+        field = get_object_or_404(form.fields, key=field_key)
+
+        if field.field_type != NominationFormField.FieldType.FILE:
+            return Response(
+                {"error": "This field is not configured as file type."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        key = request.data.get("key")
+        if not key:
+            return Response(
+                {"error": "S3 object `key` is required in the request body."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Guard: only allow deletion of keys scoped to this form + field
+        expected_prefix = f"nominations/{form_id}/{field_key}/"
+        if not key.startswith(expected_prefix):
+            return Response(
+                {"error": "Key does not belong to this form field."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = delete_file_from_s3(key=key, bucket=S3_BLOG_BUCKET_NAME)
+        if result["error"]:
+            return Response(
+                {"error": result["message"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
