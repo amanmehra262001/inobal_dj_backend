@@ -45,39 +45,48 @@ class ActivitySerializer(serializers.ModelSerializer):
         read_only_fields = ['event']
 
 
-class EventSerializer(serializers.ModelSerializer):
+class EventDaySerializer(serializers.ModelSerializer):
     activities = ActivitySerializer(many=True, required=False)
-    timezone = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    class Meta:
+        model = EventDay
+        fields = ['id', 'date', 'start_time', 'end_time', 'activities']
+
+
+class EventSerializer(serializers.ModelSerializer):
+    days = EventDaySerializer(many=True, required=False)
 
     class Meta:
         model = Event
         fields = '__all__'
-        read_only_fields = ['slug']
 
-    def create(self, validated_data):
-        activities_data = validated_data.pop('activities', [])
-        event = Event.objects.create(**validated_data)
+    def to_representation(self, instance):
+        request = self.context.get('request')
+        data = super().to_representation(instance)
 
-        for activity_data in activities_data:
-            Activity.objects.create(event=event, **activity_data)
+        if instance.event_type == "single_day":
+            # fallback: use first day
+            day = instance.days.first()
+            if day:
+                data["selected_day"] = EventDaySerializer(day).data
 
-        return event
+        else:
+            day_param = request.query_params.get("day") if request else None
 
-    def update(self, instance, validated_data):
-        print("validated_data before popping activities:", validated_data)
-        activities_data = validated_data.pop('activities', None)
+            days = instance.days.all().order_by("date")
 
-        # Update event fields
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
+            selected_day = None
 
-        if activities_data is not None:
-            instance.activities.all().delete()  # Clear old activities
-            for activity_data in activities_data:
-                Activity.objects.create(event=instance, **activity_data)
+            if day_param:
+                selected_day = days.filter(date=day_param).first()
 
-        return instance
+            if not selected_day:
+                selected_day = days.first()
+
+            data["days"] = EventDaySerializer(days, many=True).data
+            data["selected_day"] = EventDaySerializer(selected_day).data if selected_day else None
+
+        return data
 
 
 class EventFormSerializer(serializers.ModelSerializer):

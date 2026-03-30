@@ -146,7 +146,7 @@ class EventDetailView(APIView):
         if slug:
             try:
                 event = Event.objects.get(slug=slug)
-                serializer = EventSerializer(event)
+                serializer = EventSerializer(event, context={"request": request})
                 return Response(serializer.data)
             except Event.DoesNotExist:
                 return Response({"error": "Event not found"}, status=status.HTTP_404_NOT_FOUND)
