@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners, PartnerBannerImage, PartnerAward
+from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners, PartnerBannerImage, PartnerAward, EventDay
 import json
 from rest_framework.utils import model_meta
 

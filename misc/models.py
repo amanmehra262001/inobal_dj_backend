@@ -139,11 +139,17 @@ class EventDay(models.Model):
 
 
 class Activity(models.Model):
-    event_day = models.ForeignKey(EventDay, related_name="activities", on_delete=models.CASCADE)
+    day = models.ForeignKey(
+        EventDay,
+        on_delete=models.CASCADE,
+        related_name="activities",
+        null=True,   # ✅ TEMP FIX
+        blank=True
+    )
+    description = models.TextField()
+    short_description = models.CharField(max_length=255)
     start_time = models.TimeField()
     end_time = models.TimeField()
-    description = models.TextField()
-    short_description = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ['start_time']
