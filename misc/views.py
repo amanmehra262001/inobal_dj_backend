@@ -7,6 +7,8 @@ from django.shortcuts import get_object_or_404
 from common.views import CustomJWTAuthentication, IsAdminUser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from common.constants import S3_BLOG_BUCKET_NAME
 from common.utils.s3_utils import delete_image_from_s3, upload_image_to_s3
 import json
@@ -210,6 +212,107 @@ class EventDetailAdminView(APIView):
         event.delete()
         return Response(status=204)
 
+
+class EventGalleryPagination(PageNumberPagination):
+    page_size = 12
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class EventGalleryListView(ListAPIView):
+    serializer_class = EventGallerySerializer
+    permission_classes = [AllowAny]
+    pagination_class = EventGalleryPagination
+
+    def get_queryset(self):
+        slug = self.kwargs.get("slug")
+        return EventGallery.objects.filter(event__slug=slug).order_by("order")
+
+
+class EventGalleryAdminView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+    parser_classes = (MultiPartParser, FormParser)
+
+    def post(self, request, slug):
+        try:
+            event = Event.objects.get(slug=slug)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=404)
+
+        images = request.FILES.getlist("images")  # 👈 multiple files
+        captions = request.data.getlist("captions", [])  # optional
+        orders = request.data.getlist("orders", [])  # optional
+
+        if not images:
+            return Response({"error": "No images provided"}, status=400)
+
+        created_items = []
+
+        for index, image in enumerate(images):
+            upload = upload_image_to_s3(
+                image_file=image,
+                folder="event_gallery",
+                bucket=S3_BLOG_BUCKET_NAME
+            )
+
+            if upload["error"]:
+                continue
+
+            gallery = EventGallery.objects.create(
+                event=event,
+                image_url=upload["url"],
+                image_key=upload["key"],
+                caption=captions[index] if index < len(captions) else "",
+                order=int(orders[index]) if index < len(orders) else index
+            )
+
+            created_items.append(gallery)
+
+        serializer = EventGallerySerializer(created_items, many=True)
+        return Response(serializer.data, status=201)
+    
+    def delete(self, request, pk):
+        try:
+            image = EventGallery.objects.get(pk=pk)
+        except EventGallery.DoesNotExist:
+            return Response({"error": "Not found"}, status=404)
+
+        delete_image_from_s3(
+            bucket=S3_BLOG_BUCKET_NAME,
+            image_key=image.image_key
+        )
+
+        image.delete()
+        return Response(status=204)
+
+class EventGalleryReorderView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, slug):
+        """
+        expected payload:
+        [
+            {"id": 5, "order": 0},
+            {"id": 2, "order": 1},
+            {"id": 9, "order": 2}
+        ]
+        """
+        try:
+            event = Event.objects.get(slug=slug)
+        except Event.DoesNotExist:
+            return Response({"error": "Event not found"}, status=404)
+
+        data = request.data
+
+        for item in data:
+            EventGallery.objects.filter(
+                id=item["id"],
+                event=event
+            ).update(order=item["order"])
+
+        return Response({"message": "Order updated successfully"}, status=200)
 
 
 # -------- Activity Views --------

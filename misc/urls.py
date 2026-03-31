@@ -26,6 +26,13 @@ urlpatterns = [
     path('events/admin/create/', EventCreateAdminView.as_view(), name='event-admin-create'),
     path('events/admin/<slug:slug>/', EventDetailAdminView.as_view(), name='event-admin-detail'),
 
+    # Public Gallery
+    path('events/<slug:slug>/gallery/', EventGalleryListView.as_view(), name='event-gallery'),
+    # Admin Gallery
+    path('events/<slug:slug>/gallery/admin/', EventGalleryAdminView.as_view(), name='event-gallery-admin'),
+    path('events/gallery/admin/<int:pk>/', EventGalleryAdminView.as_view(), name='event-gallery-delete'),
+    path('events/<slug:slug>/gallery/reorder/', EventGalleryReorderView.as_view()),
+
     # EventForm view (admin only)
     path('eventforms/all/<slug:slug>/', EventFormListAdminView.as_view(), name='eventform-list'),
 

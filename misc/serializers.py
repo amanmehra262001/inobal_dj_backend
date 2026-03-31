@@ -203,6 +203,19 @@ class EventFormSerializer(serializers.ModelSerializer):
         read_only_fields = ['submitted_at']
 
 
+class EventGallerySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventGallery
+        fields = [
+            "id",
+            "image_url",
+            "image_key",
+            "order",
+            "caption",
+            "created_at",
+        ]
+        
+
 class PartnerBannerImageSerializer(serializers.ModelSerializer):
     class Meta:
         model = PartnerBannerImage

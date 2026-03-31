@@ -191,6 +191,28 @@ class EventMetric(models.Model):
         return f"{self.event.title} - {self.label}: {self.value}"
 
 
+class EventGallery(models.Model):
+    event = models.ForeignKey(
+        Event,
+        related_name="gallery",
+        on_delete=models.CASCADE
+    )
+
+    image_url = models.URLField()
+    image_key = models.CharField(max_length=255, null=True, blank=True)
+
+    order = models.PositiveIntegerField(default=0)
+    caption = models.CharField(max_length=255, blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order", "-created_at"]
+
+    def __str__(self):
+        return f"{self.event.title} - Gallery Image"
+        
+
 class Partners(models.Model):
     name = models.CharField(max_length=255)
     short_head = models.TextField(max_length=300)
