@@ -170,6 +170,8 @@ class EventMetric(models.Model):
     label = models.CharField(max_length=100)  
     # e.g. "Attendees", "Speakers"
 
+    desc = models.CharField(max_length=255, blank=True, null=True)  
+
     value = models.CharField(max_length=50)   
     # e.g. "500+", "40"
 
