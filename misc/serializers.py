@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners, PartnerBannerImage, PartnerAward, EventDay
+from .models import Career, BlogNotification, Advertisement, Activity, Event, EventForm, Partners, PartnerBannerImage, PartnerAward, EventDay, EventMetric
 import json
 from rest_framework.utils import model_meta
 
@@ -68,9 +68,16 @@ class EventDaySerializer(serializers.ModelSerializer):
             "activities",
         ]
 
+class EventMetricSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = EventMetric
+        fields = ["id", "label", "value", "suffix", "icon", "order", "is_highlight"]
 
 class EventSerializer(serializers.ModelSerializer):
     days = EventDaySerializer(many=True)
+    metrics = EventMetricSerializer(many=True, required=False)
 
     class Meta:
         model = Event
@@ -92,12 +99,13 @@ class EventSerializer(serializers.ModelSerializer):
             "banner_image_url",
             "banner_image_key",
             "days",
+            "metrics",
         ]
         read_only_fields = ["slug"]
 
     def create(self, validated_data):
         days_data = validated_data.pop("days", [])
-
+        metrics_data = validated_data.pop("metrics", [])
         event = Event.objects.create(**validated_data)
 
         for day_data in days_data:
@@ -106,11 +114,32 @@ class EventSerializer(serializers.ModelSerializer):
 
             for activity_data in activities_data:
                 Activity.objects.create(day=day, **activity_data)
+        
+        for metric in metrics_data:
+            EventMetric.objects.create(event=event, **metric)
 
         return event
     
     def update(self, instance, validated_data):
         days_data = validated_data.pop("days", [])
+        metrics_data = validated_data.pop("metrics", [])
+
+        existing_metrics = {m.id: m for m in instance.metrics.all()}
+
+        for metric_data in metrics_data:
+            metric_id = metric_data.get("id")
+
+            if metric_id and metric_id in existing_metrics:
+                metric = existing_metrics.pop(metric_id)
+                for attr, value in metric_data.items():
+                    setattr(metric, attr, value)
+                metric.save()
+            else:
+                EventMetric.objects.create(event=instance, **metric_data)
+
+        # delete: existing metrics removed
+        for metric in existing_metrics.values():
+            metric.delete()
 
         # Update Event fields
         for attr, value in validated_data.items():

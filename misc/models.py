@@ -160,6 +160,36 @@ class EventForm(models.Model):
     def __str__(self):
         return f"{self.full_name} - {self.event.title}"
 
+class EventMetric(models.Model):
+    event = models.ForeignKey(
+        Event,
+        related_name="metrics",
+        on_delete=models.CASCADE
+    )
+
+    label = models.CharField(max_length=100)  
+    # e.g. "Attendees", "Speakers"
+
+    value = models.CharField(max_length=50)   
+    # e.g. "500+", "40"
+
+    suffix = models.CharField(max_length=50, blank=True, null=True)  
+    # e.g. "+", "%", "Countries"
+
+    icon = models.CharField(max_length=100, blank=True, null=True)  
+    # e.g. "users", "mic", "globe" (frontend icon mapping)
+
+    order = models.PositiveIntegerField(default=0)
+
+    is_highlight = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["order"]
+        unique_together = ("event", "order")
+
+    def __str__(self):
+        return f"{self.event.title} - {self.label}: {self.value}"
+
 
 class Partners(models.Model):
     name = models.CharField(max_length=255)
