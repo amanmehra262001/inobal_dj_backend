@@ -73,7 +73,7 @@ class EventMetricSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EventMetric
-        fields = ["id", "label", "value", "suffix", "icon", "order", "is_highlight"]
+        fields = ["id", "label", "desc", "value", "suffix", "icon", "order", "is_highlight"]
 
 class EventSerializer(serializers.ModelSerializer):
     days = EventDaySerializer(many=True)
