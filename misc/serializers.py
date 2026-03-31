@@ -62,6 +62,7 @@ class EventDaySerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "order",
+            "date",
             "start_time",
             "end_time",
             "activities",
