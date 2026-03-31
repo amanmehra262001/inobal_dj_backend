@@ -162,14 +162,15 @@ class EventCreateAdminView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request):
-        data = request.data.copy()
-        activities_raw = request.POST.get("activities")
-        if activities_raw:
-            data['activities'] = json.loads(activities_raw)
-        serializer = EventSerializer(data=data)
+        serializer = EventSerializer(data=request.data)
+
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            event = serializer.save()
+            return Response(
+                EventSerializer(event).data,
+                status=status.HTTP_201_CREATED
+            )
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -185,44 +186,22 @@ class EventDetailAdminView(APIView):
         except Event.DoesNotExist:
             return None
 
-    def patch(self, request, slug):
-        event = self.get_object(slug)
-        if not event:
-            return Response({"error": "Not found"}, status=404)
+    def put(self, request, slug):
+        try:
+            event = Event.objects.prefetch_related("days__activities").get(slug=slug)
+        except Event.DoesNotExist:
+            return Response(
+                {"error": "Event not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Convert QueryDict to a normal dict first
-        data = dict(request.data)
+        serializer = EventSerializer(event, data=request.data)
 
-        # Flatten single-value fields
-        for k, v in data.items():
-            if isinstance(v, list) and len(v) == 1:
-                data[k] = v[0]
-
-        # Handle activities
-        activities_raw = data.get("activities") or request.POST.get("activities")
-        if activities_raw:
-            try:
-                activities = json.loads(activities_raw) if isinstance(activities_raw, str) else activities_raw
-                if not activities:
-                    return Response(
-                        {
-                            "error": "Activities list cannot be empty.",
-                            "activities": activities,
-                        },
-                        status=400
-                    )
-                data["activities"] = activities
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid activities JSON"}, status=400)
-
-        # Now pass to serializer
-        serializer = EventSerializer(event, data=data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
+            event = serializer.save()
+            return Response(EventSerializer(event).data)
 
-
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def delete(self, request, slug):
         event = self.get_object(slug)

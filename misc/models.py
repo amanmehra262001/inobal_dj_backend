@@ -82,16 +82,6 @@ class Advertisement(models.Model):
         return f"{self.orientation.title()} Ad"
 
 class Event(models.Model):
-    EVENT_TYPE_CHOICES = [
-        ('single_day', 'Single Day'),
-        ('multi_day', 'Multi Day'),
-    ]
-
-    event_type = models.CharField(
-        max_length=20,
-        choices=EVENT_TYPE_CHOICES,
-        default='single_day'
-    )
     title = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True)
     short_description = models.TextField(max_length=300)
@@ -127,32 +117,31 @@ class Event(models.Model):
 
 class EventDay(models.Model):
     event = models.ForeignKey(Event, related_name="days", on_delete=models.CASCADE)
+    order = models.PositiveIntegerField(default=0, help_text="days order starts from index 0")
     date = models.DateField()
     start_time = models.TimeField(null=True, blank=True)
     end_time = models.TimeField(null=True, blank=True)
 
     class Meta:
-        ordering = ['date']
+        ordering = ['order']
 
     def __str__(self):
         return f"{self.event.title} - {self.date}"
-
 
 class Activity(models.Model):
     day = models.ForeignKey(
         EventDay,
         on_delete=models.CASCADE,
         related_name="activities",
-        null=True,   # ✅ TEMP FIX
-        blank=True
     )
+    order = models.PositiveIntegerField(default=0, help_text="activities order starts from index 0")
     description = models.TextField()
     short_description = models.CharField(max_length=255)
     start_time = models.TimeField()
     end_time = models.TimeField()
 
     class Meta:
-        ordering = ['start_time']
+        ordering = ['order']
 
 
 class EventForm(models.Model):

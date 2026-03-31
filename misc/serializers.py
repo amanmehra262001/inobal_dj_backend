@@ -39,54 +39,126 @@ class AdvertisementSerializer(serializers.ModelSerializer):
 
 
 class ActivitySerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(required=False)
+
     class Meta:
         model = Activity
-        fields = '__all__'
-        read_only_fields = ['event']
+        fields = [
+            "id",
+            "order",
+            "short_description",
+            "description",
+            "start_time",
+            "end_time",
+        ]
 
 
 class EventDaySerializer(serializers.ModelSerializer):
-    activities = ActivitySerializer(many=True, required=False)
+    id = serializers.IntegerField(required=False)
+    activities = ActivitySerializer(many=True)
 
     class Meta:
         model = EventDay
-        fields = ['id', 'date', 'start_time', 'end_time', 'activities']
+        fields = [
+            "id",
+            "order",
+            "start_time",
+            "end_time",
+            "activities",
+        ]
 
 
 class EventSerializer(serializers.ModelSerializer):
-    days = EventDaySerializer(many=True, required=False)
+    days = EventDaySerializer(many=True)
 
     class Meta:
         model = Event
-        fields = '__all__'
+        fields = [
+            "id",
+            "title",
+            "slug",
+            "short_description",
+            "long_description",
+            "event_date",
+            "start_time",
+            "end_time",
+            "timezone",
+            "location",
+            "event_type",
+            "is_published",
+            "cover_image_url",
+            "cover_image_key",
+            "banner_image_url",
+            "banner_image_key",
+            "days",
+        ]
+        read_only_fields = ["slug"]
 
-    def to_representation(self, instance):
-        request = self.context.get('request')
-        data = super().to_representation(instance)
+    def create(self, validated_data):
+        days_data = validated_data.pop("days", [])
 
-        if instance.event_type == "single_day":
-            # fallback: use first day
-            day = instance.days.first()
-            if day:
-                data["selected_day"] = EventDaySerializer(day).data
+        event = Event.objects.create(**validated_data)
 
-        else:
-            day_param = request.query_params.get("day") if request else None
+        for day_data in days_data:
+            activities_data = day_data.pop("activities", [])
+            day = EventDay.objects.create(event=event, **day_data)
 
-            days = instance.days.all().order_by("date")
+            for activity_data in activities_data:
+                Activity.objects.create(day=day, **activity_data)
 
-            selected_day = None
+        return event
+    
+    def update(self, instance, validated_data):
+        days_data = validated_data.pop("days", [])
 
-            if day_param:
-                selected_day = days.filter(date=day_param).first()
+        # Update Event fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
 
-            if not selected_day:
-                selected_day = days.first()
+        existing_days = {day.id: day for day in instance.days.all()}
 
-            data["days"] = EventDaySerializer(days, many=True).data
-            data["selected_day"] = EventDaySerializer(selected_day).data if selected_day else None
+        for day_data in days_data:
+            activities_data = day_data.pop("activities", [])
+            day_id = day_data.get("id", None)
 
-        return data
+            # UPDATE existing day
+            if day_id and day_id in existing_days:
+                day = existing_days.pop(day_id)
+
+                for attr, value in day_data.items():
+                    setattr(day, attr, value)
+                day.save()
+
+            # CREATE new day
+            else:
+                day = EventDay.objects.create(event=instance, **day_data)
+
+            # --- Activities ---
+            existing_activities = {a.id: a for a in day.activities.all()}
+
+            for activity_data in activities_data:
+                activity_id = activity_data.get("id", None)
+
+                if activity_id and activity_id in existing_activities:
+                    activity = existing_activities.pop(activity_id)
+
+                    for attr, value in activity_data.items():
+                        setattr(activity, attr, value)
+                    activity.save()
+
+                else:
+                    Activity.objects.create(day=day, **activity_data)
+
+            # DELETE removed activities
+            for activity in existing_activities.values():
+                activity.delete()
+
+        # DELETE removed days
+        for day in existing_days.values():
+            day.delete()
+
+        return instance
 
 
 class EventFormSerializer(serializers.ModelSerializer):
