@@ -16,6 +16,7 @@ from django.shortcuts import get_object_or_404
 
 from django.db.models.functions import ExtractYear
 from django.db.models import Count, Q
+from django.db import transaction
 
 
 # --- TAG Views ---
