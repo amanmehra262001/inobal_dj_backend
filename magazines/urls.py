@@ -25,7 +25,7 @@ urlpatterns = [
     path('<int:magazine_id>/featured/create/', CreateFeaturedPersonView.as_view(), name='create-featured-person'),
     path('featured/<int:pk>/update/', UpdateFeaturedPersonView.as_view(), name='update-featured-person'),
     path('featured/<int:pk>/delete/', DeleteFeaturedPersonView.as_view(), name='delete-featured-person'),
-
+    path("<int:magazine_id>/featured/reorder/", ReorderFeaturedPeopleView.as_view(), name="reorder-featured-people"),
 
     path('s3/pages/', S3MagazineFileManager.as_view(), name='magazine-s3-manager'),
     path('s3-image/', S3MagazineImageManager.as_view(), name='magazine-s3-manager'),

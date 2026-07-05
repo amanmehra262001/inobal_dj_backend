@@ -65,6 +65,7 @@ class FeaturedPerson(models.Model):
         related_name='featured_people',
         on_delete=models.CASCADE
     )
+
     title = models.CharField(max_length=255)
     short_description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
@@ -75,12 +76,28 @@ class FeaturedPerson(models.Model):
     image_key = models.CharField(max_length=255, blank=True, null=True)
 
     linkedin_link = models.URLField(blank=True, null=True)
-    x_link = models.URLField(blank=True, null=True)  # X (formerly Twitter)
+    x_link = models.URLField(blank=True, null=True)
     facebook_link = models.URLField(blank=True, null=True)
     instagram_link = models.URLField(blank=True, null=True)
+
+    order = models.PositiveIntegerField(default=0, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        ordering = ["order", "id"]
+
     def __str__(self):
         return f"{self.title} ({self.job_abbreviation})"
+
+    def save(self, *args, **kwargs):
+        if self._state.adding and self.order == 0:
+            last_order = (
+                FeaturedPerson.objects
+                .filter(magazine=self.magazine)
+                .aggregate(Max("order"))["order__max"]
+            )
+            self.order = (last_order or 0) + 1
+
+        super().save(*args, **kwargs)

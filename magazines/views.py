@@ -212,7 +212,7 @@ class FeaturedPeopleByMagazineView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, magazine_id):
-        people = FeaturedPerson.objects.filter(magazine_id=magazine_id)
+        people = FeaturedPerson.objects.filter(magazine_id=magazine_id).order_by('order')
         serializer = FeaturedPersonListSerializer(people, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -226,7 +226,9 @@ class FeaturedPersonDetailView(APIView):
         person = get_object_or_404(FeaturedPerson, pk=pk)
 
         # Get the queryset ordered by id (or any other logic like created_at)
-        all_people = FeaturedPerson.objects.filter(magazine=person.magazine).order_by('id')
+        all_people = FeaturedPerson.objects.filter(
+            magazine=person.magazine
+        ).order_by("order", "id")
         ids = list(all_people.values_list('id', flat=True))
         
         current_index = ids.index(person.id)
@@ -275,6 +277,49 @@ class DeleteFeaturedPersonView(APIView):
         person.delete()
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+class ReorderFeaturedPeopleView(APIView):
+    authentication_classes = [CustomJWTAuthentication]
+    permission_classes = [IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request, magazine_id):
+
+        ids = request.data.get("ids")
+
+        if not ids:
+            return Response(
+                {"error": "ids field is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        people = FeaturedPerson.objects.filter(
+            magazine_id=magazine_id,
+            id__in=ids
+        )
+
+        people_map = {
+            person.id: person
+            for person in people
+        }
+
+        # Optional validation
+        if len(people_map) != len(ids):
+            return Response(
+                {"error": "One or more IDs are invalid."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        for index, person_id in enumerate(ids, start=1):
+            people_map[person_id].order = index
+
+        FeaturedPerson.objects.bulk_update(
+            people_map.values(),
+            ["order"]
+        )
+
+        return Response({
+            "message": "Featured people reordered successfully."
+        })
 
 # S3 integration
 class S3MagazineFileManager(APIView):
