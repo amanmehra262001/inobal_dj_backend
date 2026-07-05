@@ -3,7 +3,7 @@
 from django.urls import path
 from .views import (
     MagazineTagListCreateView, MagazineTagDeleteView,
-    MagazineListCreateAPIView, MagazineDetailAPIView, PublicMagazinesByYearView, PublicMagazinesForHomeView, PublicMagazinesForCurrentView, S3MagazineFileManager, S3MagazineImageManager, S3MagazineFeaturedImageManager, FeaturedPeopleByMagazineView, CreateFeaturedPersonView, UpdateFeaturedPersonView, DeleteFeaturedPersonView, FeaturedPersonDetailView, PublicMagazineDetailView, MagazineYearsAPIView
+    MagazineListCreateAPIView, MagazineDetailAPIView, PublicMagazinesByYearView, PublicMagazinesForHomeView, PublicMagazinesForCurrentView, S3MagazineFileManager, S3MagazineImageManager, S3MagazineFeaturedImageManager, FeaturedPeopleByMagazineView, CreateFeaturedPersonView, UpdateFeaturedPersonView, DeleteFeaturedPersonView, FeaturedPersonDetailView, PublicMagazineDetailView, MagazineYearsAPIView, ReorderFeaturedPeopleView
 )
 
 urlpatterns = [
