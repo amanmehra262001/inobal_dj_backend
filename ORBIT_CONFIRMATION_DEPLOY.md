@@ -21,6 +21,13 @@ What this adds
 Existing nominations get review_status = pending and confirmation_status = not_sent. They are NOT emailed
 because only nominations submitted on/after ORBIT_CONFIRMATION_START are considered.
 
+## Mail relay (Google blocks SMTP logins from this server)
+Google closes the connection at SMTP AUTH for this VPS address (even for a wrong password), so the backend
+sends through the website instead: POST https://www.worthminds.com/api/internal/send-email with a shared secret.
+    MEDIA_EMAIL_RELAY_URL=https://www.worthminds.com/api/internal/send-email
+    MEDIA_EMAIL_RELAY_SECRET=<same value as EMAIL_RELAY_SECRET in Vercel>
+When these two are set, MEDIA_EMAIL_USER / MEDIA_EMAIL_PASSWORD are not used.
+
 ## 2. Environment variables (.env on the server)
     MEDIA_EMAIL_USER=media@worthminds.com
     MEDIA_EMAIL_PASSWORD=<Google App Password of media@worthminds.com>

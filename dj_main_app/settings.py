@@ -230,3 +230,6 @@ MEDIA_EMAIL_USER = os.getenv("MEDIA_EMAIL_USER", "")
 MEDIA_EMAIL_PASSWORD = os.getenv("MEDIA_EMAIL_PASSWORD", "")
 MEDIA_EMAIL_FROM = os.getenv("MEDIA_EMAIL_FROM", "Worth Minds Magazine <media@worthminds.com>")
 MEDIA_EMAIL_REPLY_TO = os.getenv("MEDIA_EMAIL_REPLY_TO", "media@worthminds.com")
+# Google refuses SMTP logins from this server, so mail goes through the website (Vercel) instead:
+MEDIA_EMAIL_RELAY_URL = os.getenv("MEDIA_EMAIL_RELAY_URL", "")  # https://www.worthminds.com/api/internal/send-email
+MEDIA_EMAIL_RELAY_SECRET = os.getenv("MEDIA_EMAIL_RELAY_SECRET", "")  # same value as EMAIL_RELAY_SECRET on Vercel

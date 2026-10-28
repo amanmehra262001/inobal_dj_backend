@@ -28,12 +28,13 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         if opts["test_to"]:
-            msg = oc.build_message(opts["test_to"], opts["test_name"], connection=oc.media_connection())
+            connection = None if oc.relay_ready() else oc.media_connection()
+            msg = oc.build_message(opts["test_to"], opts["test_name"], connection=connection)
             try:
-                msg.send(fail_silently=False)
+                oc.deliver(msg)
             except Exception as exc:  # noqa: BLE001
                 raise CommandError(f"Sending the test email failed: {exc}") from exc
-            self.stdout.write(self.style.SUCCESS(f"Test email sent to {opts['test_to']}: {msg.subject}"))
+            self.stdout.write(self.style.SUCCESS(f"Test email sent to {opts['test_to']} via {'website relay' if oc.relay_ready() else 'SMTP'}: {msg.subject}"))
             return
 
         started = timezone.now()

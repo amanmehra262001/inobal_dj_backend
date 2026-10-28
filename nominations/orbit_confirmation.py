@@ -106,6 +106,35 @@ def build_message(to_email: str, name: str, connection=None, when: datetime | No
     return msg
 
 
+def relay_ready() -> bool:
+    return bool(_setting("MEDIA_EMAIL_RELAY_URL") and _setting("MEDIA_EMAIL_RELAY_SECRET"))
+
+
+def smtp_ready() -> bool:
+    return bool(_setting("MEDIA_EMAIL_USER") and _setting("MEDIA_EMAIL_PASSWORD"))
+
+
+def deliver(msg: EmailMultiAlternatives) -> None:
+    """Send one message: through the website's mail relay when configured, else by SMTP.
+
+    The relay exists because Google refuses SMTP logins from the backend server's address.
+    """
+    if not relay_ready():
+        msg.send(fail_silently=False)
+        return
+    import requests  # already in requirements.txt
+
+    html = next((body for body, mime in msg.alternatives if mime == "text/html"), "")
+    response = requests.post(
+        _setting("MEDIA_EMAIL_RELAY_URL"),
+        json={"to": msg.to[0], "subject": msg.subject, "html": html, "text": msg.body, "bcc": list(msg.bcc)},
+        headers={"Authorization": f"Bearer {_setting('MEDIA_EMAIL_RELAY_SECRET')}"},
+        timeout=45,
+    )
+    if response.status_code != 200:
+        raise RuntimeError(f"Mail relay answered {response.status_code}: {response.text[:300]}")
+
+
 def start_time() -> datetime | None:
     raw = (_setting("ORBIT_CONFIRMATION_START") or "").strip()
     if not raw:
@@ -158,13 +187,13 @@ def send_due(dry_run: bool = False, limit: int | None = None, log=print) -> Resu
     if start_time() is None:
         log("ORBIT_CONFIRMATION_START is not set: nothing will be sent. Set it to the go-live date (e.g. 2026-11-01).")
         return result
-    if not dry_run and not (_setting("MEDIA_EMAIL_USER") and _setting("MEDIA_EMAIL_PASSWORD")):
-        log("MEDIA_EMAIL_USER / MEDIA_EMAIL_PASSWORD are not set: nothing will be sent.")
+    if not dry_run and not (relay_ready() or smtp_ready()):
+        log("No way to send: set MEDIA_EMAIL_RELAY_URL + MEDIA_EMAIL_RELAY_SECRET (or MEDIA_EMAIL_USER + MEDIA_EMAIL_PASSWORD).")
         return result
 
     approve_mode = _setting("ORBIT_CONFIRMATION_MODE", "auto") == "approve"
     candidates = list(due_queryset()[: limit or None])
-    connection = None if dry_run else media_connection()
+    connection = None if (dry_run or relay_ready()) else media_connection()
 
     for nomination in candidates:
         if approve_mode and nomination.review_status != Nominations.ReviewStatus.APPROVED:
@@ -216,7 +245,7 @@ def send_due(dry_run: bool = False, limit: int | None = None, log=print) -> Resu
             continue  # rejected or handled meanwhile
 
         try:
-            build_message(email, name, connection=connection).send(fail_silently=False)
+            deliver(build_message(email, name, connection=connection))
         except Exception as exc:  # noqa: BLE001 - record any SMTP failure and retry next run
             _mark(nomination.pk, Nominations.ConfirmationStatus.FAILED, f"{type(exc).__name__}: {exc}")
             result.failed += 1
