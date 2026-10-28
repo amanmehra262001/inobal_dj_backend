@@ -77,10 +77,30 @@ class NominationsSerializer(serializers.ModelSerializer):
             "form",
             "form_name",
             "responses",
+            "review_status",
+            "reviewed_at",
+            "confirmation_status",
+            "confirmation_sent_at",
+            "confirmation_note",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "form_name", "created_at", "updated_at")
+        read_only_fields = (
+            "id",
+            "form_name",
+            "reviewed_at",
+            "confirmation_status",
+            "confirmation_sent_at",
+            "confirmation_note",
+            "created_at",
+            "updated_at",
+        )
+
+
+class NominationReviewSerializer(serializers.Serializer):
+    """Admin: set the editorial review status of a submission."""
+
+    review_status = serializers.ChoiceField(choices=Nominations.ReviewStatus.choices)
 
 
 class NominationSubmitSerializer(serializers.Serializer):

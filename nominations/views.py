@@ -1,4 +1,5 @@
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
@@ -11,6 +12,7 @@ from common.views import CustomJWTAuthentication, IsAdminUser
 from .models import NominationForm, NominationFormField, Nominations
 from .serializers import (
     NominationFormSerializer,
+    NominationReviewSerializer,
     NominationsSerializer,
     NominationSubmitSerializer,
 )
@@ -162,7 +164,7 @@ class NominationsAdminListView(APIView):
 
 
 class NominationsAdminDetailView(APIView):
-    """Admin: retrieve a single submission."""
+    """Admin: retrieve a single submission, or set its review status (PATCH)."""
 
     authentication_classes = [CustomJWTAuthentication]
     permission_classes = [IsAdminUser]
@@ -171,6 +173,21 @@ class NominationsAdminDetailView(APIView):
         nomination = get_object_or_404(
             Nominations.objects.select_related("form"), pk=pk
         )
+        return Response(NominationsSerializer(nomination).data)
+
+    def patch(self, request, pk):
+        """Set the review status, e.g. {"review_status": "rejected"}.
+
+        A rejected nomination never receives the Orbit selection confirmation email.
+        """
+        nomination = get_object_or_404(
+            Nominations.objects.select_related("form"), pk=pk
+        )
+        serializer = NominationReviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        nomination.review_status = serializer.validated_data["review_status"]
+        nomination.reviewed_at = timezone.now()
+        nomination.save(update_fields=["review_status", "reviewed_at", "updated_at"])
         return Response(NominationsSerializer(nomination).data)
 
 

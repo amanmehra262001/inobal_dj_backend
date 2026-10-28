@@ -136,12 +136,44 @@ class Nominations(models.Model):
     key/value pairs inside `responses`.
     """
 
+    class ReviewStatus(models.TextChoices):
+        PENDING = "pending", _("Pending review")
+        APPROVED = "approved", _("Approved")
+        REJECTED = "rejected", _("Rejected")
+
+    class ConfirmationStatus(models.TextChoices):
+        NOT_SENT = "not_sent", _("Not sent")
+        SENT = "sent", _("Sent")
+        SKIPPED = "skipped", _("Skipped")
+        FAILED = "failed", _("Failed")
+
     form = models.ForeignKey(
         NominationForm,
         on_delete=models.CASCADE,
         related_name="submissions",
     )
     responses = models.JSONField(blank=True, default=dict)
+
+    # Editorial review. A rejected nomination never receives the selection
+    # confirmation email (see `send_orbit_confirmations`).
+    review_status = models.CharField(
+        max_length=10,
+        choices=ReviewStatus.choices,
+        default=ReviewStatus.PENDING,
+        db_index=True,
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    # Delayed "Official Selection Confirmation" email.
+    confirmation_status = models.CharField(
+        max_length=10,
+        choices=ConfirmationStatus.choices,
+        default=ConfirmationStatus.NOT_SENT,
+        db_index=True,
+    )
+    confirmation_sent_at = models.DateTimeField(null=True, blank=True)
+    confirmation_attempts = models.PositiveSmallIntegerField(default=0)
+    confirmation_note = models.TextField(blank=True, default="")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -153,3 +185,22 @@ class Nominations(models.Model):
 
     def __str__(self) -> str:
         return f"{self.form.name} - {self.id}"
+    # ── Helpers used by the admin and the confirmation email ────────────────
+    NAME_KEYS = ("full_name", "name")
+    EMAIL_KEYS = ("email_address", "email")
+
+    def _first_response(self, keys) -> str:
+        data = self.responses if isinstance(self.responses, dict) else {}
+        for key in keys:
+            value = data.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
+    @property
+    def nominee_name(self) -> str:
+        return self._first_response(self.NAME_KEYS)
+
+    @property
+    def nominee_email(self) -> str:
+        return self._first_response(self.EMAIL_KEYS)

@@ -27,10 +27,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0e+s8_9^saajjr%@7gu3944@#)nna4^msjh*1_u-9h-&lz)#qg'
+# Set DJANGO_SECRET_KEY on the server. The fallback below is public (this repo is public) and must not be relied on.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY') or 'django-insecure-0e+s8_9^saajjr%@7gu3944@#)nna4^msjh*1_u-9h-&lz)#qg'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Set DJANGO_DEBUG=False on the server (DEBUG pages expose internal URLs and settings).
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
 ALLOWED_HOSTS = ['*']  # OR ['your-ip']
 
@@ -87,7 +89,8 @@ SIMPLE_JWT = {
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': 'hexxAGgvRP5R04U6egzoHE2vcxno3mfn9LTP',
+    # Set JWT_SIGNING_SECRET_KEY on the server. The fallback is public: anyone could sign admin tokens with it.
+    'SIGNING_KEY': JWT_SIGNING_SECRET_KEY or 'hexxAGgvRP5R04U6egzoHE2vcxno3mfn9LTP',
     'VERIFYING_KEY': None,
     'AUTH_HEADER_TYPES': ('Bearer',),
     'USER_ID_FIELD': 'id',
@@ -206,3 +209,24 @@ MEDIA_URL = '/media/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ── Orbit Edition: delayed "Official Selection Confirmation" email ─────────────
+# Sent by `python manage.py send_orbit_confirmations` (run hourly from cron).
+ORBIT_CONFIRMATION_FORM_ID = int(os.getenv("ORBIT_CONFIRMATION_FORM_ID", "2"))
+ORBIT_CONFIRMATION_DELAY_HOURS = float(os.getenv("ORBIT_CONFIRMATION_DELAY_HOURS", "36"))
+ORBIT_CONFIRMATION_MODE = os.getenv("ORBIT_CONFIRMATION_MODE", "auto")  # "auto" or "approve"
+# Only nominations submitted on/after this date are emailed. Unset = nothing is sent.
+ORBIT_CONFIRMATION_START = os.getenv("ORBIT_CONFIRMATION_START", "")
+ORBIT_CONFIRMATION_DESIGN = os.getenv("ORBIT_CONFIRMATION_DESIGN", "letter")  # letter | night | certificate
+ORBIT_CONFIRMATION_STAMP = os.getenv("ORBIT_CONFIRMATION_STAMP", "mono")  # mono | color
+ORBIT_CONFIRMATION_SITE_URL = os.getenv("ORBIT_CONFIRMATION_SITE_URL", "https://www.worthminds.com")
+ORBIT_CONFIRMATION_BCC = os.getenv("ORBIT_CONFIRMATION_BCC", "")  # e.g. admin@worthminds.com for a copy
+
+# media@worthminds.com mailbox (Google Workspace App Password)
+MEDIA_EMAIL_HOST = os.getenv("MEDIA_EMAIL_HOST", "smtp.gmail.com")
+MEDIA_EMAIL_PORT = int(os.getenv("MEDIA_EMAIL_PORT", "465"))
+MEDIA_EMAIL_USER = os.getenv("MEDIA_EMAIL_USER", "")
+MEDIA_EMAIL_PASSWORD = os.getenv("MEDIA_EMAIL_PASSWORD", "")
+MEDIA_EMAIL_FROM = os.getenv("MEDIA_EMAIL_FROM", "Worth Minds Magazine <media@worthminds.com>")
+MEDIA_EMAIL_REPLY_TO = os.getenv("MEDIA_EMAIL_REPLY_TO", "media@worthminds.com")

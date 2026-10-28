@@ -1,0 +1,30 @@
+{% autoescape off %}WORTH MINDS MAGAZINE
+The Orbit Edition — 30 Stories Beyond Earth
+
+OFFICIAL SELECTION CONFIRMATION
+{{ letter_date }}
+
+Dear {{ name }},
+
+On behalf of the esteemed Jury Panel of Worth Minds Magazine, we are pleased to officially confirm your selection for The Orbit Edition — 30 Stories Beyond Earth.
+
+Following a review of your professional journey, achievements, and contributions, we are delighted to recognize your profile as part of this distinctive editorial initiative celebrating individuals whose work and ideas are making a meaningful impact.
+
+YOUR STORY. YOUR LEGACY. BEYOND EARTH.
+
+The Orbit Edition represents an ambitious vision to celebrate remarkable human stories through a magazine initiative designed to travel beyond conventional boundaries, with a planned journey to the edge of space via a high-altitude balloon.
+
+NEXT STEPS
+Our team will contact you shortly with the next steps, relevant timelines, and the information required to proceed with your participation. We look forward to guiding you through the upcoming stages of the editorial process.
+
+Congratulations on this recognition. We look forward to sharing your story through this special edition.
+
+Warm regards,
+On Behalf of the Jury Panel
+Worth Minds Magazine
+The Orbit Edition — 30 Stories Beyond Earth
+INOBAL LLC — Accredited (Official Stamp)
+
+---
+CONFIDENTIALITY NOTICE: This communication is confidential and intended solely for the designated recipient. It may not be shared, reproduced, published, or distributed on any platform without prior written authorization from Worth Minds International — Orbit Edition, until officially released by the publication.
+{% endautoescape %}
