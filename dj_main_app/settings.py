@@ -115,6 +115,12 @@ CORS_ALLOWED_ORIGINS = [
     "https://api.worthminds.com",
 ]
 
+# Extra allowed origins without a code change, comma-separated, e.g.
+#   CORS_EXTRA_ORIGINS=https://admin.worthminds.com,https://worthminds-admin.vercel.app
+_extra_origins = [o.strip().rstrip("/") for o in os.getenv("CORS_EXTRA_ORIGINS", "").split(",") if o.strip()]
+CORS_ALLOWED_ORIGINS += _extra_origins
+CSRF_TRUSTED_ORIGINS += _extra_origins
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
